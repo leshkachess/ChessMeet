@@ -1,10 +1,10 @@
-# ChessMeet v0.13.0 — Railway Ready audit
+# ChessMeet v0.13.1 — Railway Ready audit
 
 ## Проверено
 
 - Python-синтаксис `src/*.py`, launcher и remote admin client.
 - JavaScript-синтаксис `webapp/app.js`.
-- Версии в backend/frontend обновлены до `0.13.0`.
+- Версии в backend/frontend обновлены до `0.13.1`.
 - Добавлены Railway deploy files.
 - Добавлены защищённые admin endpoints.
 - Исправлена логика сброса серии задачки по 00:00 МСК.

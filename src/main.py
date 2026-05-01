@@ -4,6 +4,8 @@ import asyncio
 import os
 import csv
 import io
+import shutil
+from datetime import datetime, timezone
 import aiosqlite
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,7 +14,7 @@ from typing import Any, Dict, Optional
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -227,7 +229,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="Chess IRL Minsk MVP", version="0.13.0", lifespan=lifespan)
+app = FastAPI(title="Chess IRL Minsk MVP", version="0.13.1", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -275,7 +277,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "0.13.0",
+        "version": "0.13.1",
         "railway_ready": True,
         "database_path": DATABASE_PATH,
     }
@@ -727,6 +729,43 @@ async def api_diary(user: Dict[str, Any] = Depends(current_user)):
 
 
 
+def _database_file_path() -> Path:
+    return Path(DATABASE_PATH).expanduser().resolve()
+
+
+def _backup_database_path(prefix: str = "before_restore") -> Path:
+    db_path = _database_file_path()
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return db_path.with_name(f"{db_path.stem}_{prefix}_{stamp}{db_path.suffix}")
+
+
+async def _validate_uploaded_sqlite(path: Path) -> dict[str, Any]:
+    """Validate that uploaded file is a readable SQLite database with expected core tables."""
+    expected_tables = {"users", "game_requests", "responses"}
+    try:
+        async with aiosqlite.connect(str(path)) as conn:
+            conn.row_factory = aiosqlite.Row
+            integrity = await conn.execute_fetchall("PRAGMA integrity_check")
+            integrity_result = str(integrity[0][0]) if integrity else "unknown"
+            if integrity_result.lower() != "ok":
+                raise HTTPException(status_code=400, detail=f"SQLite integrity_check failed: {integrity_result}")
+            rows = await conn.execute_fetchall("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = {str(row[0]) for row in rows}
+            missing = sorted(expected_tables - tables)
+            if missing:
+                raise HTTPException(status_code=400, detail=f"Uploaded DB is missing required tables: {', '.join(missing)}")
+            counts: dict[str, int] = {}
+            for table in sorted(expected_tables):
+                count_rows = await conn.execute_fetchall(f"SELECT COUNT(*) FROM {table}")
+                counts[table] = int(count_rows[0][0]) if count_rows else 0
+            return {"integrity": integrity_result, "tables": len(tables), "counts": counts}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Uploaded file is not a valid SQLite database: {exc}") from exc
+
+
+
 async def _admin_table_rows(table: str, columns: str = "*", order_by: str = "id DESC", limit: int = 100) -> list[dict[str, Any]]:
     allowed_tables = {
         "users", "game_requests", "responses", "ratings", "user_reports", "game_photos",
@@ -760,7 +799,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "0.13.0",
+        "version": "0.13.1",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "puzzle_streaks_reset_now": reset_count,
@@ -873,6 +912,82 @@ async def api_admin_export_users(_: None = Depends(require_admin)):
 async def api_admin_export_games(_: None = Depends(require_admin)):
     rows = await _admin_table_rows("game_requests", order_by="created_at DESC", limit=10000)
     return _csv_response("games.csv", rows)
+
+
+@app.get("/api/admin/db/info")
+async def api_admin_db_info(_: None = Depends(require_admin)):
+    db_path = _database_file_path()
+    info = {
+        "database_path": str(db_path),
+        "exists": db_path.exists(),
+        "size_bytes": db_path.stat().st_size if db_path.exists() else 0,
+    }
+    if db_path.exists():
+        try:
+            async with aiosqlite.connect(str(db_path)) as conn:
+                rows = await conn.execute_fetchall("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                info["tables"] = [row[0] for row in rows]
+                for table in ["users", "game_requests", "responses", "ratings", "badges", "user_badges"]:
+                    if table in info["tables"]:
+                        count_rows = await conn.execute_fetchall(f"SELECT COUNT(*) FROM {table}")
+                        info[f"{table}_count"] = int(count_rows[0][0]) if count_rows else 0
+        except Exception as exc:
+            info["error"] = str(exc)
+    return info
+
+
+@app.get("/api/admin/db/backup")
+async def api_admin_db_backup(_: None = Depends(require_admin)):
+    db_path = _database_file_path()
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="Database file not found")
+    return FileResponse(
+        path=str(db_path),
+        media_type="application/octet-stream",
+        filename="chess_irl_railway_backup.sqlite3",
+    )
+
+
+@app.post("/api/admin/db/restore")
+async def api_admin_db_restore(file: UploadFile = File(...), _: None = Depends(require_admin)):
+    db_path = _database_file_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not file.filename.lower().endswith((".sqlite3", ".sqlite", ".db")):
+        raise HTTPException(status_code=400, detail="Upload a .sqlite3/.sqlite/.db file")
+
+    temp_path = db_path.with_name(f".{db_path.name}.upload.tmp")
+    try:
+        with temp_path.open("wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+        validation = await _validate_uploaded_sqlite(temp_path)
+
+        backup_path = None
+        if db_path.exists():
+            backup_path = _backup_database_path("before_restore")
+            shutil.copy2(db_path, backup_path)
+
+        os.replace(temp_path, db_path)
+        # Re-run migrations/index creation on the restored DB so older local DBs are upgraded.
+        await db.init()
+        return {
+            "ok": True,
+            "restored_to": str(db_path),
+            "size_bytes": db_path.stat().st_size,
+            "backup_created": str(backup_path) if backup_path else None,
+            "validation": validation,
+            "message": "Database restored. Restart/redeploy the Railway service if the bot still shows stale data.",
+        }
+    finally:
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except Exception:
+            pass
 
 
 @app.post("/api/internal/accept/{response_id}")

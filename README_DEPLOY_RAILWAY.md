@@ -130,3 +130,34 @@ POST /api/admin/games/{game_id}/cancel
 - решил вчера → серия ещё активна, можно продлить сегодня;
 - последний решённый день старше вчера → текущая серия сбрасывается в 0;
 - лучший рекорд и общее число решённых задач не сбрасываются.
+
+## Restore old local SQLite database to Railway
+
+If the Railway bot starts with empty data, your old SQLite database is still local on your computer. Use the restore tool:
+
+1. Make sure your Railway service has `ADMIN_TOKEN` and `DATABASE_PATH=/data/chess_irl.sqlite3`.
+2. Make sure a Railway Volume is mounted at `/data`.
+3. Keep your old local `chess_irl.sqlite3` file safe.
+4. Run:
+
+```text
+RESTORE_LOCAL_DB_TO_RAILWAY.bat
+```
+
+Enter:
+
+```text
+Railway/Admin API URL: https://your-service.up.railway.app
+ADMIN_TOKEN: your ADMIN_TOKEN
+Local SQLite DB path: C:\path\to\old\chess_irl.sqlite3
+```
+
+Type `RESTORE` to confirm. The server will create a backup of the existing remote DB before replacing it.
+
+To download a Railway DB backup to your computer, run:
+
+```text
+BACKUP_RAILWAY_DB_TO_LOCAL.bat
+```
+
+The remote admin client also has buttons: `DB Info`, `Backup DB`, `Restore DB`.

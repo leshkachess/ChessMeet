@@ -10,7 +10,7 @@ from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, Y, Button, Entry, Frame, Label, Scrollbar, Text, Tk, messagebox
 from tkinter import ttk
 
-APP_TITLE = "ChessMeet Remote Admin Client v0.13"
+APP_TITLE = "ChessMeet Remote Admin Client v0.13.1"
 ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
 
@@ -34,7 +34,7 @@ class RemoteAdmin:
         self.root.title(APP_TITLE)
         self.root.geometry("980x720")
 
-        Label(self.root, text="ChessMeet Remote Admin Client v0.13", font=("Segoe UI", 15, "bold"), pady=8).pack()
+        Label(self.root, text="ChessMeet Remote Admin Client v0.13.1", font=("Segoe UI", 15, "bold"), pady=8).pack()
 
         top = Frame(self.root)
         top.pack(fill="x", padx=10, pady=6)
@@ -56,6 +56,9 @@ class RemoteAdmin:
         Button(buttons, text="Puzzles", command=self.load_puzzles).pack(side=LEFT, padx=4)
         Button(buttons, text="Export users.csv", command=lambda: self.download_csv("/api/admin/export/users.csv", "users.csv")).pack(side=LEFT, padx=4)
         Button(buttons, text="Export games.csv", command=lambda: self.download_csv("/api/admin/export/games.csv", "games.csv")).pack(side=LEFT, padx=4)
+        Button(buttons, text="DB Info", command=self.load_db_info).pack(side=LEFT, padx=4)
+        Button(buttons, text="Backup DB", command=self.backup_db).pack(side=LEFT, padx=4)
+        Button(buttons, text="Restore DB", command=self.restore_db).pack(side=LEFT, padx=4)
 
         action = Frame(self.root)
         action.pack(fill="x", padx=10, pady=4)
@@ -146,6 +149,70 @@ class RemoteAdmin:
                 data["note"] = "Showing first 20 puzzles. Use API directly for full list."
             self.show_json(data)
         except Exception as e: messagebox.showerror(APP_TITLE, str(e))
+
+    def load_db_info(self):
+        try: self.show_json(self.request("/api/admin/db/info"))
+        except Exception as e: messagebox.showerror(APP_TITLE, str(e))
+
+    def backup_db(self):
+        url = self.base_url() + "/api/admin/db/backup"
+        req = urllib.request.Request(url, headers={"X-Admin-Token": self.token()}, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                content = resp.read()
+            target = filedialog.asksaveasfilename(
+                title="Save Railway SQLite backup",
+                defaultextension=".sqlite3",
+                initialfile="chess_irl_railway_backup.sqlite3",
+                filetypes=[("SQLite DB", "*.sqlite3"), ("All files", "*.*")],
+            )
+            if not target:
+                return
+            Path(target).write_bytes(content)
+            self.write(f"Saved DB backup: {target}")
+        except Exception as e:
+            messagebox.showerror(APP_TITLE, str(e))
+
+    def restore_db(self):
+        db_file = filedialog.askopenfilename(
+            title="Select local chess_irl.sqlite3 to restore to Railway",
+            filetypes=[("SQLite DB", "*.sqlite3 *.sqlite *.db"), ("All files", "*.*")],
+        )
+        if not db_file:
+            return
+        if not messagebox.askyesno(APP_TITLE, "This will overwrite the remote Railway database. Continue?"):
+            return
+        try:
+            path = Path(db_file)
+            boundary = "----ChessMeetBoundary7MA4YWxkTrZu0gW"
+            file_bytes = path.read_bytes()
+            body = b"".join([
+                f"--{boundary}\r\n".encode(),
+                f'Content-Disposition: form-data; name="file"; filename="{path.name}"\r\n'.encode(),
+                b"Content-Type: application/octet-stream\r\n\r\n",
+                file_bytes,
+                f"\r\n--{boundary}--\r\n".encode(),
+            ])
+            req = urllib.request.Request(
+                self.base_url() + "/api/admin/db/restore",
+                data=body,
+                method="POST",
+                headers={
+                    "X-Admin-Token": self.token(),
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "Content-Length": str(len(body)),
+                },
+            )
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+            try:
+                self.show_json(json.loads(raw))
+            except Exception:
+                self.result.delete("1.0", END)
+                self.write(raw)
+            messagebox.showinfo(APP_TITLE, "Database restored. If the bot still shows stale data, restart/redeploy Railway once.")
+        except Exception as e:
+            messagebox.showerror(APP_TITLE, str(e))
 
     def download_csv(self, path: str, default_name: str):
         url = self.base_url() + path
