@@ -32,7 +32,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '0.13.0';
+const APP_VERSION = '0.14.0';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -97,6 +97,20 @@ function applyTheme(mode) {
 
 function currentThemeMode() {
   return state.me?.theme_mode || 'light';
+}
+
+function telegramLanguage() {
+  return window.ChessMeetI18n.normalize(tg?.initDataUnsafe?.user?.language_code || 'en');
+}
+
+function currentLanguage() {
+  return window.ChessMeetI18n.normalize(
+    state.me?.ui_language || localStorage.getItem(cacheKey('ui_language')) || telegramLanguage()
+  );
+}
+
+function tr(text) {
+  return window.ChessMeetI18n.text(String(text ?? ''), currentLanguage());
 }
 
 const STATUS_LABELS = {
@@ -201,7 +215,7 @@ function ownedBadgesSection(user) {
 function showToast(message) {
   const toast = document.createElement('div');
   toast.className = 'toast';
-  toast.textContent = message;
+  toast.textContent = tr(message);
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2600);
 }
@@ -231,6 +245,8 @@ async function bootstrap() {
     state.dailyPuzzle = boot.daily_puzzle || state.dailyPuzzle;
     state.profilePhotoDraft = state.me?.photo_data_url || '';
     applyTheme(state.me?.theme_mode || 'light');
+    if (state.me?.ui_language) localStorage.setItem(cacheKey('ui_language'), state.me.ui_language);
+    else localStorage.removeItem(cacheKey('ui_language'));
     localStorage.setItem(cacheKey('theme_mode'), state.me?.theme_mode || 'light');
     writeCache('bootstrap', boot);
     render();
@@ -347,7 +363,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.13.0</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
       </div>
@@ -824,6 +840,13 @@ function profileScreen() {
         <label class="toggle-row"><span>Показывать Telegram username<small>По умолчанию скрыт</small></span><input type="checkbox" name="show_telegram_username" ${me.show_telegram_username ? 'checked' : ''} /></label>
       </section>
       <section class="flow-card"><div class="step-label">Оформление</div>
+        <label>Язык приложения
+          <select name="ui_language" id="language-select">
+            <option value="ru" ${currentLanguage() === 'ru' ? 'selected' : ''}>Русский</option>
+            <option value="en" ${currentLanguage() === 'en' ? 'selected' : ''}>Английский</option>
+          </select>
+          <small>Автоматически определяется по языку Telegram. Ручной выбор сохранится в профиле.</small>
+        </label>
         <label>Тема приложения
           <select name="theme_mode" id="theme-mode-select">
             <option value="light" ${(me.theme_mode || 'light') === 'light' ? 'selected' : ''}>Светлая</option>
@@ -906,6 +929,7 @@ function render() {
   applyTheme(currentThemeMode());
   destroyMapIfNeeded();
   app.innerHTML = shell(renderScreen());
+  window.ChessMeetI18n.apply(app, currentLanguage());
   bindEvents();
   afterRender();
 }
@@ -1079,8 +1103,9 @@ async function submitProfile(e) {
     notify_new_requests: fd.get('notify_new_requests') === 'on',
     notify_puzzle_streak: fd.get('notify_puzzle_streak') === 'on',
     theme_mode: fd.get('theme_mode') || 'light',
+    ui_language: fd.get('ui_language') || currentLanguage(),
   };
-  try { const data = await api('/api/me', { method: 'PATCH', body: JSON.stringify(payload) }); state.me = data.user; applyTheme(state.me.theme_mode || 'light'); localStorage.setItem(cacheKey('theme_mode'), state.me.theme_mode || 'light'); state.profilePhotoDraft = data.user.photo_data_url || ''; showToast('Профиль сохранён'); render(); } catch (err) { showToast(err.message); }
+  try { const data = await api('/api/me', { method: 'PATCH', body: JSON.stringify(payload) }); state.me = data.user; applyTheme(state.me.theme_mode || 'light'); localStorage.setItem(cacheKey('theme_mode'), state.me.theme_mode || 'light'); localStorage.setItem(cacheKey('ui_language'), state.me.ui_language || telegramLanguage()); state.profilePhotoDraft = data.user.photo_data_url || ''; showToast('Профиль сохранён'); render(); } catch (err) { showToast(err.message); }
 }
 
 function handlePhoto(e) {

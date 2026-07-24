@@ -88,6 +88,7 @@ class ProfileUpdate(BaseModel):
     notify_new_requests: bool = False
     notify_puzzle_streak: bool = True
     theme_mode: str = Field(default="light", max_length=20)
+    ui_language: str = Field(default="", max_length=10)
 
 
 class RatingCreate(BaseModel):

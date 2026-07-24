@@ -202,6 +202,7 @@ class Database:
                     notify_new_requests INTEGER NOT NULL DEFAULT 0,
                     notify_puzzle_streak INTEGER NOT NULL DEFAULT 1,
                     theme_mode TEXT DEFAULT 'light',
+                    ui_language TEXT DEFAULT '',
                     puzzle_reminder_sent_date TEXT DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -428,6 +429,7 @@ class Database:
             await self._add_column_if_missing(db, "users", "notify_new_requests", "INTEGER NOT NULL DEFAULT 0")
             await self._add_column_if_missing(db, "users", "notify_puzzle_streak", "INTEGER NOT NULL DEFAULT 1")
             await self._add_column_if_missing(db, "users", "theme_mode", "TEXT DEFAULT 'light'")
+            await self._add_column_if_missing(db, "users", "ui_language", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "users", "puzzle_reminder_sent_date", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "users", "invited_by", "INTEGER")
             await self._add_column_if_missing(db, "users", "invite_count", "INTEGER DEFAULT 0")
@@ -587,6 +589,9 @@ class Database:
         theme_mode = (data.get("theme_mode") or "light").strip().lower()
         if theme_mode not in {"light", "dark", "system"}:
             theme_mode = "light"
+        ui_language = (data.get("ui_language") or "").strip().lower()
+        if ui_language not in {"ru", "en"}:
+            ui_language = ""
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             await db.execute(
@@ -595,11 +600,11 @@ class Database:
                 SET display_name = ?, profile_city = ?, city = ?, level = ?, bio = ?,
                     show_telegram_username = ?, photo_data_url = ?,
                     notify_game_reminders = ?, notify_new_requests = ?, notify_puzzle_streak = ?,
-                    theme_mode = ?, updated_at = ?
+                    theme_mode = ?, ui_language = ?, updated_at = ?
                 WHERE telegram_id = ?
                 """,
                 (display_name, profile_city, profile_city, level, bio, show_username, photo_data_url,
-                 notify_game_reminders, notify_new_requests, notify_puzzle_streak, theme_mode, ts, telegram_id),
+                 notify_game_reminders, notify_new_requests, notify_puzzle_streak, theme_mode, ui_language, ts, telegram_id),
             )
             await db.commit()
             rows = await db.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
@@ -2118,6 +2123,7 @@ class Database:
         user["theme_mode"] = user.get("theme_mode") or "light"
         if user["theme_mode"] not in {"light", "dark", "system"}:
             user["theme_mode"] = "light"
+        user["ui_language"] = user.get("ui_language") or ""
         user["puzzle_reminder_sent_date"] = user.get("puzzle_reminder_sent_date") or ""
         user["invited_by"] = user.get("invited_by")
         user["invite_count"] = int(user.get("invite_count") or 0)

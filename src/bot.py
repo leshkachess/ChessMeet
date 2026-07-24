@@ -230,7 +230,7 @@ def build_dispatcher(db: Database, webapp_url: str) -> Dispatcher:
                 pass
 
         await message.answer(
-            "Привет! Это <b>ChessMeet</b> — мини-приложение для поиска шахматной партии в реальной жизни.\n\n"
+            "Привет! Это <b>ChessMeet</b> — мини-приложение для поиска шахматной партии в реальной жизни.\n\n",
             reply_markup=main_keyboard(webapp_url),
         )
 
