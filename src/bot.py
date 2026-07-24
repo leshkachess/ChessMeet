@@ -230,15 +230,14 @@ def build_dispatcher(db: Database, webapp_url: str) -> Dispatcher:
                 pass
 
         await message.answer(
-            "Привет! Это <b>Chess IRL Minsk</b> — мини-приложение для поиска шахматной партии в реальной жизни.\n\n"
-            "Теперь после принятия отклика партия сразу подтверждается, чат открывается автоматически, а бот напомнит о встрече за 3 часа и за 30 минут.",
+            "Привет! Это <b>ChessMeet</b> — мини-приложение для поиска шахматной партии в реальной жизни.\n\n"
             reply_markup=main_keyboard(webapp_url),
         )
 
     @router.message(Command("help"))
     async def help_cmd(message: Message) -> None:
         await message.answer(
-            "Как работает MVP:\n\n"
+            "Как это работает:\n\n"
             "1. Заполни профиль и при желании добавь фото.\n"
             "2. Создай заявку и выбери место на карте.\n"
             "3. Игроки откликаются, а автор принимает или отклоняет отклик в Telegram.\n"
