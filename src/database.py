@@ -612,6 +612,22 @@ class Database:
                 raise ValueError("USER_NOT_FOUND")
             return self._normalize_user(dict(rows[0]))
 
+    async def update_user_preferences(self, telegram_id: int, *, ui_language: str) -> Dict[str, Any]:
+        language = (ui_language or "").strip().lower()
+        if language not in {"ru", "en"}:
+            raise ValueError("INVALID_LANGUAGE")
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            await db.execute(
+                "UPDATE users SET ui_language = ?, updated_at = ? WHERE telegram_id = ?",
+                (language, now_iso(), telegram_id),
+            )
+            await db.commit()
+            rows = await db.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+            if not rows:
+                raise ValueError("USER_NOT_FOUND")
+            return self._normalize_user(dict(rows[0]))
+
     async def create_game(self, creator_telegram_id: int, data: Dict[str, Any], default_city: str = "Минск") -> Dict[str, Any]:
         ts = now_iso()
         scheduled_at = self._normalize_scheduled_at(data.get("scheduled_at"), data.get("date_label"), data.get("time_label"))

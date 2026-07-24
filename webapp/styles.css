@@ -746,6 +746,42 @@ a { color: inherit; }
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
+.language-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.language-card small {
+  color: var(--muted);
+}
+
+.language-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-width: 132px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.language-switch button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.language-switch button.active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .12);
+}
+
 
 /* v0.10.4 hotfix: consistent bottom navigation icons */
 .nav-item { transition: transform .12s ease, background .12s ease, color .12s ease; }

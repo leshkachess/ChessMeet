@@ -32,7 +32,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '0.14.0';
+const APP_VERSION = '0.14.1';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -227,7 +227,12 @@ async function api(path, options = {}) {
   const res = await fetch(path, { ...options, headers });
   let data = {};
   try { data = await res.json(); } catch (_) {}
-  if (!res.ok) throw new Error(data.detail || 'Ошибка запроса');
+  if (!res.ok) {
+    const detail = Array.isArray(data.detail)
+      ? data.detail.map(item => item.msg || String(item)).join(', ')
+      : data.detail;
+    throw new Error(typeof detail === 'string' ? detail : 'Ошибка запроса');
+  }
   return data;
 }
 
@@ -363,7 +368,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.0</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.1</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
       </div>
@@ -823,6 +828,13 @@ function profileScreen() {
       ${profileBadges(me)}
       ${customBadgeRow((me.badges || []).filter(b => b.is_visible))}
     </section>
+    <section class="flow-card language-card">
+      <div><div class="step-label">Язык приложения</div><small>Изменение применяется и сохраняется сразу</small></div>
+      <div class="language-switch" role="group" aria-label="Язык приложения">
+        <button type="button" data-set-language="ru" class="${currentLanguage() === 'ru' ? 'active' : ''}">RU</button>
+        <button type="button" data-set-language="en" class="${currentLanguage() === 'en' ? 'active' : ''}">EN</button>
+      </div>
+    </section>
     <section class="flow-card invite-card">
       <div class="step-label">Пригласить друга</div>
       <p>Поделись ChessMeet с другом и помоги собрать больше игроков в Минске.</p>
@@ -840,13 +852,6 @@ function profileScreen() {
         <label class="toggle-row"><span>Показывать Telegram username<small>По умолчанию скрыт</small></span><input type="checkbox" name="show_telegram_username" ${me.show_telegram_username ? 'checked' : ''} /></label>
       </section>
       <section class="flow-card"><div class="step-label">Оформление</div>
-        <label>Язык приложения
-          <select name="ui_language" id="language-select">
-            <option value="ru" ${currentLanguage() === 'ru' ? 'selected' : ''}>Русский</option>
-            <option value="en" ${currentLanguage() === 'en' ? 'selected' : ''}>Английский</option>
-          </select>
-          <small>Автоматически определяется по языку Telegram. Ручной выбор сохранится в профиле.</small>
-        </label>
         <label>Тема приложения
           <select name="theme_mode" id="theme-mode-select">
             <option value="light" ${(me.theme_mode || 'light') === 'light' ? 'selected' : ''}>Светлая</option>
@@ -951,6 +956,7 @@ function bindEvents() {
   document.querySelectorAll('[data-place-rate-game]').forEach(form => form.addEventListener('submit', submitPlaceRating));
   document.querySelectorAll('[data-diary-game]').forEach(el => el.addEventListener('click', () => updateDiary(el.dataset.diaryGame)));
   document.querySelectorAll('[data-share-invite]').forEach(el => el.addEventListener('click', shareInvite));
+  document.querySelectorAll('[data-set-language]').forEach(el => el.addEventListener('click', () => setLanguage(el.dataset.setLanguage)));
   document.querySelectorAll('[data-toggle-history]').forEach(el => el.addEventListener('click', () => { state.showGameHistory = el.dataset.toggleHistory === '1'; render(); }));
   document.querySelectorAll('[data-edit-game]').forEach(el => el.addEventListener('click', () => { state.editingGameId = Number(el.dataset.editGame); state.selectedPlace = null; navigate('create'); }));
   document.querySelectorAll('[data-cancel-edit]').forEach(el => el.addEventListener('click', () => { state.editingGameId = null; state.selectedPlace = null; navigate('my'); }));
@@ -1091,6 +1097,11 @@ async function submitBadgeVisibility(e) {
 
 async function submitProfile(e) {
   e.preventDefault();
+  const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = tr('Сохраняем...');
+  }
   const fd = new FormData(e.currentTarget);
   const payload = {
     display_name: fd.get('display_name'),
@@ -1103,9 +1114,41 @@ async function submitProfile(e) {
     notify_new_requests: fd.get('notify_new_requests') === 'on',
     notify_puzzle_streak: fd.get('notify_puzzle_streak') === 'on',
     theme_mode: fd.get('theme_mode') || 'light',
-    ui_language: fd.get('ui_language') || currentLanguage(),
+    ui_language: currentLanguage(),
   };
-  try { const data = await api('/api/me', { method: 'PATCH', body: JSON.stringify(payload) }); state.me = data.user; applyTheme(state.me.theme_mode || 'light'); localStorage.setItem(cacheKey('theme_mode'), state.me.theme_mode || 'light'); localStorage.setItem(cacheKey('ui_language'), state.me.ui_language || telegramLanguage()); state.profilePhotoDraft = data.user.photo_data_url || ''; showToast('Профиль сохранён'); render(); } catch (err) { showToast(err.message); }
+  try {
+    const data = await api('/api/me', { method: 'PATCH', body: JSON.stringify(payload) });
+    state.me = data.user;
+    applyTheme(state.me.theme_mode || 'light');
+    localStorage.setItem(cacheKey('theme_mode'), state.me.theme_mode || 'light');
+    localStorage.setItem(cacheKey('ui_language'), state.me.ui_language || telegramLanguage());
+    state.profilePhotoDraft = data.user.photo_data_url || '';
+    showToast('Настройки сохранены');
+    render();
+  } catch (err) {
+    showToast(err.message);
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = tr('Сохранить профиль');
+    }
+  }
+}
+
+async function setLanguage(language) {
+  const next = window.ChessMeetI18n.normalize(language);
+  if (next === currentLanguage() && state.me?.ui_language === next) return;
+  try {
+    const data = await api('/api/me/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ ui_language: next }),
+    });
+    state.me = { ...(state.me || {}), ...data.user };
+    localStorage.setItem(cacheKey('ui_language'), next);
+    showToast(next === 'ru' ? 'Язык изменён' : 'Language changed');
+    render();
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 function handlePhoto(e) {

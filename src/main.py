@@ -78,7 +78,7 @@ class GameCreate(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    display_name: str = Field(min_length=2, max_length=80)
+    display_name: str = Field(min_length=1, max_length=80)
     profile_city: str = Field(default="Минск", max_length=80)
     level: str = Field(default="Средний", max_length=80)
     bio: str = Field(default="", max_length=300)
@@ -89,6 +89,9 @@ class ProfileUpdate(BaseModel):
     notify_puzzle_streak: bool = True
     theme_mode: str = Field(default="light", max_length=20)
     ui_language: str = Field(default="", max_length=10)
+
+class PreferencesUpdate(BaseModel):
+    ui_language: str = Field(pattern="^(ru|en)$")
 
 
 class RatingCreate(BaseModel):
@@ -387,6 +390,14 @@ async def api_update_me(payload: ProfileUpdate, user: Dict[str, Any] = Depends(c
         if str(exc) == "PHOTO_TOO_LARGE":
             raise HTTPException(status_code=400, detail="Фото слишком большое") from exc
         raise
+    return {"user": updated}
+
+@app.patch("/api/me/preferences")
+async def api_update_preferences(payload: PreferencesUpdate, user: Dict[str, Any] = Depends(current_user)):
+    updated = await db.update_user_preferences(
+        int(user["telegram_id"]),
+        ui_language=payload.ui_language,
+    )
     return {"user": updated}
 
 @app.get("/api/badges")
