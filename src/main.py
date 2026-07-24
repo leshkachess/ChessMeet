@@ -6,6 +6,7 @@ import csv
 import io
 import shutil
 import hmac
+import json
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
 import aiosqlite
@@ -135,6 +136,7 @@ class ProfileUpdate(BaseModel):
 class PreferencesUpdate(BaseModel):
     ui_language: Optional[str] = Field(default=None, pattern="^(ru|en)$")
     profile_city: Optional[str] = None
+    notify_new_requests: Optional[bool] = None
 
     @field_validator("profile_city")
     @classmethod
@@ -169,6 +171,10 @@ class PlaceRatingCreate(BaseModel):
 class DiaryUpdate(BaseModel):
     result: str = Field(default="", max_length=80)
     notes: str = Field(default="", max_length=1000)
+
+class AnalyticsEventCreate(BaseModel):
+    event_name: str = Field(min_length=1, max_length=80)
+    event_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CancelGameRequest(BaseModel):
@@ -287,7 +293,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="0.15.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.0.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -361,7 +367,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "0.15.0",
+        "version": "1.0.0",
         "railway_ready": True,
     }
 
@@ -477,12 +483,13 @@ async def api_update_me(payload: ProfileUpdate, user: Dict[str, Any] = Depends(c
 
 @app.patch("/api/me/preferences")
 async def api_update_preferences(payload: PreferencesUpdate, user: Dict[str, Any] = Depends(current_user)):
-    if payload.ui_language is None and payload.profile_city is None:
+    if payload.ui_language is None and payload.profile_city is None and payload.notify_new_requests is None:
         raise HTTPException(status_code=400, detail="No preferences supplied")
     updated = await db.update_user_preferences(
         int(user["telegram_id"]),
         ui_language=payload.ui_language,
         profile_city=payload.profile_city,
+        notify_new_requests=payload.notify_new_requests,
     )
     return {"user": updated}
 
@@ -538,6 +545,12 @@ async def api_games(city: str = DEFAULT_CITY, user: Dict[str, Any] = Depends(cur
         raise HTTPException(status_code=400, detail="Unsupported city")
     games = await db.list_games(city=canonical_city(city))
     return {"games": games}
+
+@app.get("/api/cities/{city}/stats")
+async def api_city_stats(city: str, user: Dict[str, Any] = Depends(current_user)):
+    if not is_supported_city(city):
+        raise HTTPException(status_code=404, detail="Unsupported city")
+    return await db.city_stats(canonical_city(city))
 
 
 @app.get("/api/my")
@@ -650,6 +663,28 @@ async def api_confirm_game(game_id: int, user: Dict[str, Any] = Depends(current_
             raise HTTPException(status_code=403, detail="Подтвердить может только участник партии") from exc
         raise HTTPException(status_code=400, detail=error) from exc
     return {"game": game}
+
+@app.post("/api/games/{game_id}/check-in")
+async def api_check_in_game(game_id: int, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        game = await db.check_in_game(game_id, int(user["telegram_id"]))
+        return {"game": game}
+    except ValueError as exc:
+        mapping = {
+            "GAME_NOT_CONFIRMED": (400, "Check-in доступен только для подтверждённой партии"),
+            "NOT_ALLOWED": (403, "Check-in доступен только участникам партии"),
+        }
+        status_code, detail = mapping.get(str(exc), (400, str(exc)))
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+@app.post("/api/analytics/event", status_code=204)
+async def api_track_event(payload: AnalyticsEventCreate, user: Dict[str, Any] = Depends(current_user)):
+    await db.track_event(
+        int(user["telegram_id"]),
+        payload.event_name,
+        json.dumps(payload.event_data, ensure_ascii=False, separators=(",", ":")),
+    )
+    return Response(status_code=204)
 
 
 @app.post("/api/games/{game_id}/rate")

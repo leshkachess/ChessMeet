@@ -412,6 +412,17 @@ class Database:
                 )
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS analytics_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER,
+                    event_name TEXT NOT NULL,
+                    event_data TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
 
             # Lightweight migrations from older MVP versions.
             await self._add_column_if_missing(db, "users", "display_name", "TEXT")
@@ -434,6 +445,8 @@ class Database:
             await self._add_column_if_missing(db, "users", "puzzle_reminder_sent_date", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "users", "invited_by", "INTEGER")
             await self._add_column_if_missing(db, "users", "invite_count", "INTEGER DEFAULT 0")
+            await self._add_column_if_missing(db, "users", "subscription_format", "TEXT DEFAULT 'all'")
+            await self._add_column_if_missing(db, "users", "subscription_level", "TEXT DEFAULT 'all'")
             await self._add_column_if_missing(db, "daily_puzzle_attempts", "selected_move", "TEXT DEFAULT ''")
 
             await self._add_column_if_missing(db, "game_requests", "place_id", "TEXT DEFAULT ''")
@@ -452,6 +465,8 @@ class Database:
             await self._add_column_if_missing(db, "game_requests", "cancel_reason", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "game_requests", "no_show_reported_by", "INTEGER")
             await self._add_column_if_missing(db, "game_requests", "no_show_target_id", "INTEGER")
+            await self._add_column_if_missing(db, "game_requests", "creator_checked_in_at", "TEXT DEFAULT ''")
+            await self._add_column_if_missing(db, "game_requests", "responder_checked_in_at", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_date_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_time_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_comment", "TEXT DEFAULT ''")
@@ -470,6 +485,7 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_user_reports_created ON user_reports(created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_game_photos_game_created ON game_photos(game_id, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_game_diary_owner ON game_diary(owner_telegram_id, updated_at)",
+                "CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name, created_at)",
             ]:
                 await db.execute(sql)
 
@@ -622,35 +638,74 @@ class Database:
         *,
         ui_language: Optional[str] = None,
         profile_city: Optional[str] = None,
+        notify_new_requests: Optional[bool] = None,
     ) -> Dict[str, Any]:
         language = (ui_language or "").strip().lower() if ui_language is not None else None
         if language is not None and language not in {"ru", "en"}:
             raise ValueError("INVALID_LANGUAGE")
         city = canonical_city(profile_city) if profile_city is not None else None
-        if language is None and city is None:
+        if language is None and city is None and notify_new_requests is None:
             raise ValueError("NO_PREFERENCES")
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
-            if language is not None and city is not None:
-                await db.execute(
-                    "UPDATE users SET ui_language = ?, profile_city = ?, city = ?, updated_at = ? WHERE telegram_id = ?",
-                    (language, city, city, now_iso(), telegram_id),
-                )
-            elif language is not None:
-                await db.execute(
-                    "UPDATE users SET ui_language = ?, updated_at = ? WHERE telegram_id = ?",
-                    (language, now_iso(), telegram_id),
-                )
-            else:
-                await db.execute(
-                    "UPDATE users SET profile_city = ?, city = ?, updated_at = ? WHERE telegram_id = ?",
-                    (city, city, now_iso(), telegram_id),
-                )
+            updates, values = [], []
+            if language is not None:
+                updates.append("ui_language = ?"); values.append(language)
+            if city is not None:
+                updates.extend(["profile_city = ?", "city = ?"]); values.extend([city, city])
+            if notify_new_requests is not None:
+                updates.append("notify_new_requests = ?"); values.append(1 if notify_new_requests else 0)
+            updates.append("updated_at = ?"); values.append(now_iso())
+            values.append(telegram_id)
+            await db.execute(f"UPDATE users SET {', '.join(updates)} WHERE telegram_id = ?", values)
             await db.commit()
             rows = await db.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
             if not rows:
                 raise ValueError("USER_NOT_FOUND")
             return self._normalize_user(dict(rows[0]))
+
+    async def city_stats(self, city: str) -> Dict[str, Any]:
+        city = canonical_city(city)
+        async with aiosqlite.connect(self.path) as db:
+            rows = await db.execute_fetchall(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM users WHERE COALESCE(profile_city, city, 'Минск') = ?) AS players,
+                    (SELECT COUNT(*) FROM game_requests WHERE city = ? AND status IN ('open','pending')) AS open_games,
+                    (SELECT COUNT(*) FROM game_requests WHERE city = ? AND status IN ('confirmed','completed')) AS matched_games
+                """,
+                (city, city, city),
+            )
+        row = rows[0] if rows else (0, 0, 0)
+        return {"city": city, "players": int(row[0]), "open_games": int(row[1]), "matched_games": int(row[2])}
+
+    async def track_event(self, telegram_id: int, event_name: str, event_data: str = "{}") -> None:
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT INTO analytics_events (telegram_id, event_name, event_data, created_at) VALUES (?, ?, ?, ?)",
+                (telegram_id, (event_name or "unknown").strip()[:80], (event_data or "{}")[:1000], now_iso()),
+            )
+            await db.commit()
+
+    async def check_in_game(self, game_id: int, telegram_id: int) -> Dict[str, Any]:
+        game = await self.get_game(game_id)
+        if not game or game.get("status") != STATUS_CONFIRMED or not game.get("accepted_response"):
+            raise ValueError("GAME_NOT_CONFIRMED")
+        creator_id = int(game["creator_telegram_id"])
+        responder_id = int(game["accepted_response"]["responder_telegram_id"])
+        if telegram_id == creator_id:
+            column = "creator_checked_in_at"
+        elif telegram_id == responder_id:
+            column = "responder_checked_in_at"
+        else:
+            raise ValueError("NOT_ALLOWED")
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                f"UPDATE game_requests SET {column} = ?, updated_at = ? WHERE id = ?",
+                (now_iso(), now_iso(), game_id),
+            )
+            await db.commit()
+        return await self.get_game(game_id) or {}
 
     async def create_game(self, creator_telegram_id: int, data: Dict[str, Any], default_city: str = "Минск") -> Dict[str, Any]:
         ts = now_iso()
@@ -2203,6 +2258,8 @@ class Database:
         game["has_board"] = bool(game.get("has_board"))
         game["creator_confirmed"] = bool(game.get("creator_confirmed"))
         game["responder_confirmed"] = bool(game.get("responder_confirmed"))
+        game["creator_checked_in"] = bool(game.get("creator_checked_in_at"))
+        game["responder_checked_in"] = bool(game.get("responder_checked_in_at"))
         game["reminder_3h_sent"] = bool(game.get("reminder_3h_sent"))
         game["reminder_30m_sent"] = bool(game.get("reminder_30m_sent"))
         game["is_flexible"] = bool(game.get("is_flexible"))
