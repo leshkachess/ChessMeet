@@ -32,7 +32,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '0.14.2';
+const APP_VERSION = '0.15.0';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -73,8 +73,34 @@ function hydrateFromCache() {
   return true;
 }
 
+function selectedCity() {
+  return state.me?.profile_city || state.config?.default_city || 'Минск';
+}
+
 function currentCity() {
-  return encodeURIComponent(state.me?.profile_city || state.config?.default_city || 'Минск');
+  return encodeURIComponent(selectedCity());
+}
+
+function cityCatalog() {
+  return state.config?.cities || [{ name: 'Минск', country: 'BY', timezone: 'Europe/Minsk' }];
+}
+
+function selectedCityInfo() {
+  return cityCatalog().find(city => city.name === selectedCity()) || cityCatalog()[0];
+}
+
+function cityOptions(selected = selectedCity()) {
+  const groups = [
+    ['BY', 'Беларусь'],
+    ['RU', 'Россия'],
+  ];
+  return groups.map(([country, label]) => {
+    const options = cityCatalog().filter(city => city.country === country);
+    if (!options.length) return '';
+    return `<optgroup label="${label}">${options.map(city =>
+      `<option value="${h(city.name)}" ${city.name === selected ? 'selected' : ''}>${h(city.name)}</option>`
+    ).join('')}</optgroup>`;
+  }).join('');
 }
 
 function resolveTheme(mode) {
@@ -310,10 +336,11 @@ async function loadMy() {
 }
 
 async function loadDailyPuzzle() {
-  const cached = readCache('daily_puzzle', 30 * 60 * 1000);
+  const cacheId = `daily_puzzle_${currentCity()}`;
+  const cached = readCache(cacheId, 30 * 60 * 1000);
   if (cached && !state.dailyPuzzle) state.dailyPuzzle = cached;
   state.dailyPuzzle = await api('/api/daily-puzzle');
-  writeCache('daily_puzzle', state.dailyPuzzle);
+  writeCache(cacheId, state.dailyPuzzle);
 }
 
 async function loadChat(gameId) {
@@ -328,12 +355,12 @@ function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = setInterval(() => {
     if (document.hidden) return;
-    if (['home', 'games', 'my', 'chat'].includes(state.screen)) hydrate({ silent: true });
+    if (['home', 'games', 'my', 'puzzle', 'chat'].includes(state.screen)) hydrate({ silent: true });
   }, AUTO_REFRESH_MS);
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && ['home', 'games', 'my', 'chat'].includes(state.screen)) hydrate({ silent: true });
+  if (!document.hidden && ['home', 'games', 'my', 'puzzle', 'chat'].includes(state.screen)) hydrate({ silent: true });
 });
 
 function navigate(screen) {
@@ -375,13 +402,14 @@ function topbar() {
   const title = {
     home: 'ChessMeet', games: 'Партии рядом', create: 'Создать партию', my: 'Мои партии', puzzle: 'Задача дня', profile: 'Профиль', user: 'Игрок', chat: 'Чат'
   }[state.screen] || 'ChessMeet';
-  const city = state.me?.profile_city || state.config?.default_city || 'Минск';
+  const city = selectedCity();
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.2</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.15.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
+        <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
       </div>
       <button class="avatar-btn" data-nav="profile">${avatar(state.me, 'top-avatar')}</button>
     </header>
@@ -434,7 +462,7 @@ function homeScreen() {
     ${onboardingCard()}
 
     <section class="quick-grid home-quick-grid">
-      ${quickAction('games', 'games', 'Найти партию', 'Список заявок в Минске')}
+      ${quickAction('games', 'games', 'Найти партию', `Список заявок: ${selectedCity()}`)}
       ${quickAction('my', 'my', 'Мои встречи', nextGame ? `${nextGame.place}` : 'Отклики, чаты, оценки')}
       ${quickAction('puzzle', 'puzzle', 'Задача дня', `Серия ${streak} 🔥`)}
       ${quickAction('profile', 'profile', 'Профиль', ratingText(state.me))}
@@ -628,7 +656,7 @@ function createScreen() {
         <div class="two-cols"><label>Формат<select name="game_format">${['Блиц 5+3','Рапид 10+5','Классика','Свободная игра'].map(x => `<option ${defaults.game_format === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label><label>Уровень<select name="level">${['Новичок','Средний','Сильный любитель','Любой'].map(x => `<option ${defaults.level === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
       </section>
       <section class="flow-card"><div class="step-label">2 · Где</div>
-        <label>Город<input name="city" value="${h(defaults.city)}" required /></label>
+        <label>Город<select name="city" required>${cityOptions(defaults.city || selectedCity())}</select></label>
         <label>Место<input name="place" value="${h(state.selectedPlace?.place || defaults.place || '')}" placeholder="Кафе, парк, клуб" required /></label>
         <label>Район / ориентир<input name="area" value="${h(state.selectedPlace?.area || defaults.area || '')}" placeholder="Немига, центр, Восток" /></label>
         <label>Адрес<input name="address" value="${h(state.selectedPlace?.address || defaults.address || '')}" placeholder="Можно поставить точку на карте" /></label>
@@ -777,7 +805,7 @@ function puzzleScreen() {
   return `
     <section class="puzzle-hero ${solved ? 'solved' : ''}">
       <div><span class="status ${solved ? 'green' : 'amber'}">${solved ? 'Решено сегодня' : 'Мат в 1'}</span><h2>${h(p.title || 'Задача дня')}</h2><p>${h(p.description || 'Сделай ход прямо на доске.')}</p></div>
-      <div class="timer-card"><small>Следующая</small><strong id="puzzle-countdown">--:--:--</strong><span>00:00 МСК</span></div>
+      <div class="timer-card"><small>Следующая</small><strong id="puzzle-countdown">--:--:--</strong><span id="puzzle-timezone-label">00:00 · ${h(selectedCity())}</span></div>
     </section>
     <section class="puzzle-board-card">
       ${renderPuzzleBoard(p.fen || '')}
@@ -848,7 +876,7 @@ function profileScreen() {
     </section>
     <section class="flow-card invite-card">
       <div class="step-label">Пригласить друга</div>
-      <p>Поделись ChessMeet с другом и помоги собрать больше игроков в Минске.</p>
+      <p>Поделись ChessMeet с другом и помоги собрать больше игроков в городе ${h(selectedCity())}.</p>
       <button class="big-primary" data-share-invite>Поделиться приглашением</button>
       <small>Приглашено: ${Number(me.invite_count || 0)}</small>
     </section>
@@ -858,7 +886,7 @@ function profileScreen() {
       <section class="flow-card"><div class="step-label">Публичный профиль</div>
         <label>Фото<input type="file" id="profile-photo-input" accept="image/*" /></label>
         <label>Публичное имя<input name="display_name" value="${h(me.display_name || '')}" required /></label>
-        <div class="two-cols"><label>Город<input name="profile_city" value="${h(me.profile_city || 'Минск')}" /></label><label>Уровень<select name="level">${['Новичок','Средний','Сильный любитель','Тренер / профи'].map(x => `<option ${me.level === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+        <div class="two-cols"><label>Город<select name="profile_city">${cityOptions(me.profile_city || selectedCity())}</select></label><label>Уровень<select name="level">${['Новичок','Средний','Сильный любитель','Тренер / профи'].map(x => `<option ${me.level === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
         <label>О себе<textarea name="bio" placeholder="Коротко о себе">${h(me.bio || '')}</textarea></label>
         <label class="toggle-row"><span>Показывать Telegram username<small>По умолчанию скрыт</small></span><input type="checkbox" name="show_telegram_username" ${me.show_telegram_username ? 'checked' : ''} /></label>
       </section>
@@ -877,7 +905,7 @@ function profileScreen() {
       <section class="flow-card"><div class="step-label">Уведомления</div>
         <label class="toggle-row"><span>Напоминания о партиях<small>За 3 часа и за 30 минут до встречи</small></span><input type="checkbox" name="notify_game_reminders" ${me.notify_game_reminders !== false ? 'checked' : ''} /></label>
         <label class="toggle-row"><span>Новые заявки<small>Когда другой игрок публикует партию в твоём городе</small></span><input type="checkbox" name="notify_new_requests" ${me.notify_new_requests === true ? 'checked' : ''} /></label>
-        <label class="toggle-row"><span>Продление серии<small>В 21:00 МСК, если задача дня ещё не решена</small></span><input type="checkbox" name="notify_puzzle_streak" ${me.notify_puzzle_streak !== false ? 'checked' : ''} /></label>
+        <label class="toggle-row"><span>Продление серии<small>В 21:00 по времени выбранного города, если задача дня ещё не решена</small></span><input type="checkbox" name="notify_puzzle_streak" ${me.notify_puzzle_streak !== false ? 'checked' : ''} /></label>
         <button class="big-primary" type="submit">Сохранить профиль</button>
       </section>
     </form>
@@ -989,6 +1017,8 @@ function bindEvents() {
   if (badgesForm) badgesForm.addEventListener('submit', submitBadgeVisibility);
   const profileForm = document.getElementById('profile-form');
   if (profileForm) profileForm.addEventListener('submit', submitProfile);
+  const cityFilter = document.getElementById('city-filter-select');
+  if (cityFilter) cityFilter.addEventListener('change', e => setCity(e.target.value));
   const themeSelect = document.getElementById('theme-mode-select');
   if (themeSelect) themeSelect.addEventListener('change', e => applyTheme(e.target.value));
   const photoInput = document.getElementById('profile-photo-input');
@@ -1136,6 +1166,7 @@ async function submitProfile(e) {
     localStorage.setItem(cacheKey('theme_mode'), state.me.theme_mode || 'light');
     localStorage.setItem(cacheKey('ui_language'), state.me.ui_language || telegramLanguage());
     state.profilePhotoDraft = data.user.photo_data_url || '';
+    await Promise.all([loadGames(), loadDailyPuzzle()]);
     showToast('Настройки сохранены');
     render();
   } catch (err) {
@@ -1161,6 +1192,24 @@ async function setLanguage(language) {
     render();
   } catch (err) {
     showToast(err.message);
+  }
+}
+
+async function setCity(city) {
+  if (!city || city === selectedCity()) return;
+  try {
+    const data = await api('/api/me/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ profile_city: city }),
+    });
+    state.me = { ...(state.me || {}), ...data.user };
+    state.selectedPlace = null;
+    await Promise.all([loadGames(), loadDailyPuzzle()]);
+    showToast(`Город: ${city}`);
+    render();
+  } catch (err) {
+    showToast(err.message);
+    render();
   }
 }
 
@@ -1288,15 +1337,32 @@ function handlePuzzleClick(square, piece) {
 
 async function answerPuzzle(move) { try { const data = await api('/api/daily-puzzle/answer', { method: 'POST', body: JSON.stringify({ selected_move: move }) }); state.dailyPuzzle = data; const me = await api('/api/me'); state.me = me.user; showToast(data.correct ? `Верно: ${data.solution_san || move}` : 'Пока неверно'); if (!data.correct) state.puzzleLastMove = null; render(); } catch (e) { showToast(e.message); } }
 
-function nextMoscowMidnight() {
+function nextCityMidnight() {
   const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const msk = new Date(utc + 3 * 3600000);
-  const next = new Date(msk);
-  next.setHours(24, 0, 0, 0);
-  return next.getTime() - msk.getTime();
+  const timeZone = selectedCityInfo()?.timezone || 'Europe/Minsk';
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(now).map(part => [part.type, part.value]));
+  const localAsUtc = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    Number(parts.hour), Number(parts.minute), Number(parts.second),
+  );
+  const nextLocalMidnight = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) + 1);
+  return Math.max(0, nextLocalMidnight - localAsUtc);
 }
-function updateCountdown() { const el = document.getElementById('puzzle-countdown'); if (!el) return; const ms = Math.max(0, nextMoscowMidnight()); const h = String(Math.floor(ms / 3600000)).padStart(2, '0'); const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0'); const s = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0'); el.textContent = `${h}:${m}:${s}`; }
+function updateCountdown() {
+  const el = document.getElementById('puzzle-countdown');
+  if (!el) return;
+  const ms = nextCityMidnight();
+  const hours = String(Math.floor(ms / 3600000)).padStart(2, '0');
+  const minutes = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+  const seconds = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+  el.textContent = `${hours}:${minutes}:${seconds}`;
+}
 function ensureCountdown() { if (!state.countdownInterval) state.countdownInterval = setInterval(updateCountdown, 1000); }
 
 function initCreateMap() {
@@ -1305,7 +1371,13 @@ function initCreateMap() {
   const selectedLat = Number(state.selectedPlace?.latitude);
   const selectedLng = Number(state.selectedPlace?.longitude);
   const hasSelectedCoordinates = Number.isFinite(selectedLat) && Number.isFinite(selectedLng);
-  const center = hasSelectedCoordinates ? [selectedLat, selectedLng] : [53.9, 27.5667];
+  const cityInfo = selectedCityInfo();
+  const cityLat = Number(cityInfo?.latitude);
+  const cityLng = Number(cityInfo?.longitude);
+  const hasCityCoordinates = Number.isFinite(cityLat) && Number.isFinite(cityLng);
+  const center = hasSelectedCoordinates
+    ? [selectedLat, selectedLng]
+    : (hasCityCoordinates ? [cityLat, cityLng] : [53.9, 27.5667]);
   state.map = L.map(el, { zoomControl: false }).setView(center, hasSelectedCoordinates ? 16 : 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OSM' }).addTo(state.map);
   L.control.zoom({ position: 'bottomright' }).addTo(state.map);

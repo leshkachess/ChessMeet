@@ -52,6 +52,28 @@ a { color: inherit; }
 .version-pill { padding: 4px 8px; border-radius: 999px; background: var(--green-soft); color: var(--green); }
 .topbar-v7 h1 { margin: 9px 0 3px; font-size: 28px; line-height: 1.03; letter-spacing: -0.05em; }
 .topbar-v7 p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.city-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 5px 6px 5px 11px;
+  border-radius: 16px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+.city-filter select {
+  max-width: 190px;
+  border: 0;
+  outline: 0;
+  border-radius: 11px;
+  padding: 7px 9px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 850;
+}
 .avatar-btn { padding: 0; background: transparent; }
 .top-avatar, .avatar, .profile-avatar {
   display: grid; place-items: center; flex: 0 0 auto;

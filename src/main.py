@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from .auth import TelegramAuthError, demo_user, validate_telegram_init_data
+from .cities import canonical_city, city_catalog, city_local_hour, city_today_key, is_supported_city, public_city_config
 from .bot import (
     build_dispatcher,
     notify_creator_about_response,
@@ -48,7 +49,7 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "chess_irl.sqlite3"))
-DEFAULT_CITY = os.getenv("DEFAULT_CITY", "Минск")
+DEFAULT_CITY = canonical_city(os.getenv("DEFAULT_CITY", "Минск"))
 
 BOT_IS_CONFIGURED = bool(BOT_TOKEN and BOT_TOKEN != "123456789:PASTE_YOUR_BOT_TOKEN_HERE")
 
@@ -77,6 +78,13 @@ class GameCreate(BaseModel):
     level: str = Field(min_length=2, max_length=80)
     has_board: bool = True
     comment: str = Field(default="", max_length=500)
+
+    @field_validator("city")
+    @classmethod
+    def validate_city(cls, value: str) -> str:
+        if not is_supported_city(value):
+            raise ValueError("unsupported city")
+        return canonical_city(value)
 
     @field_validator("latitude")
     @classmethod
@@ -117,8 +125,25 @@ class ProfileUpdate(BaseModel):
     theme_mode: str = Field(default="light", max_length=20)
     ui_language: str = Field(default="", max_length=10)
 
+    @field_validator("profile_city")
+    @classmethod
+    def validate_profile_city(cls, value: str) -> str:
+        if not is_supported_city(value):
+            raise ValueError("unsupported city")
+        return canonical_city(value)
+
 class PreferencesUpdate(BaseModel):
-    ui_language: str = Field(pattern="^(ru|en)$")
+    ui_language: Optional[str] = Field(default=None, pattern="^(ru|en)$")
+    profile_city: Optional[str] = None
+
+    @field_validator("profile_city")
+    @classmethod
+    def validate_preference_city(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if not is_supported_city(value):
+            raise ValueError("unsupported city")
+        return canonical_city(value)
 
 
 class RatingCreate(BaseModel):
@@ -204,18 +229,20 @@ async def notification_loop() -> None:
                         except Exception:
                             pass
 
-                # Daily streak reminder at 21:00 MSK.
-                msk_now = (asyncio.get_running_loop().time())  # monotonic placeholder for sleep stability
-                from datetime import datetime, timezone, timedelta
-                msk_dt = datetime.now(timezone.utc) + timedelta(hours=3)
-                if msk_dt.hour == 21:
-                    for recipient in await db.get_users_for_streak_reminder():
+                # Daily streak reminder at 21:00 in each user's selected city.
+                reminder_now = datetime.now(timezone.utc)
+                for city in city_catalog():
+                    if city_local_hour(city["name"], reminder_now) != 21:
+                        continue
+                    today_key = city_today_key(city["name"], reminder_now)
+                    for recipient in await db.get_users_for_streak_reminder(city=city["name"], today_key=today_key):
                         try:
                             await notify_puzzle_streak_reminder(
                                 bot,
                                 int(recipient["telegram_id"]),
                                 int(recipient.get("puzzle_streak") or 0),
                                 WEBAPP_URL,
+                                city=city["name"],
                             )
                         except Exception:
                             pass
@@ -260,7 +287,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="0.14.2", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="0.15.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -309,7 +336,10 @@ async def current_user(x_telegram_init_data: str = Header(default="")) -> Dict[s
         raise HTTPException(status_code=401, detail="Telegram auth is required")
 
     user = await db.upsert_user(user_payload, default_city=DEFAULT_CITY)
-    await db.normalize_puzzle_streak(int(user["telegram_id"]))
+    await db.normalize_puzzle_streak(
+        int(user["telegram_id"]),
+        today_key=city_today_key(user.get("profile_city") or DEFAULT_CITY),
+    )
     return await db.get_user(int(user["telegram_id"])) or user
 
 
@@ -331,7 +361,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "0.14.2",
+        "version": "0.15.0",
         "railway_ready": True,
     }
 
@@ -340,6 +370,7 @@ async def health():
 async def api_config():
     return {
         "default_city": DEFAULT_CITY,
+        "cities": public_city_config(),
         "bot_username": BOT_USERNAME,
         "map_provider": "OpenStreetMap",
         "maps_require_api_key": False,
@@ -383,11 +414,12 @@ async def api_bootstrap(user: Dict[str, Any] = Depends(current_user)):
     games, my, daily_puzzle = await asyncio.gather(
         db.list_games(city=city or DEFAULT_CITY),
         db.list_my_games(telegram_id=int(user["telegram_id"])),
-        db.get_daily_puzzle(int(user["telegram_id"])),
+        db.get_daily_puzzle(int(user["telegram_id"]), puzzle_date=city_today_key(city)),
     )
     return {
         "config": {
             "default_city": DEFAULT_CITY,
+            "cities": public_city_config(),
             "bot_username": BOT_USERNAME,
             "map_provider": "OpenStreetMap",
             "maps_require_api_key": False,
@@ -445,9 +477,12 @@ async def api_update_me(payload: ProfileUpdate, user: Dict[str, Any] = Depends(c
 
 @app.patch("/api/me/preferences")
 async def api_update_preferences(payload: PreferencesUpdate, user: Dict[str, Any] = Depends(current_user)):
+    if payload.ui_language is None and payload.profile_city is None:
+        raise HTTPException(status_code=400, detail="No preferences supplied")
     updated = await db.update_user_preferences(
         int(user["telegram_id"]),
         ui_language=payload.ui_language,
+        profile_city=payload.profile_city,
     )
     return {"user": updated}
 
@@ -476,13 +511,20 @@ async def api_public_user(telegram_id: int, user: Dict[str, Any] = Depends(curre
 
 @app.get("/api/daily-puzzle")
 async def api_daily_puzzle(user: Dict[str, Any] = Depends(current_user)):
-    return await db.get_daily_puzzle(int(user["telegram_id"]))
+    return await db.get_daily_puzzle(
+        int(user["telegram_id"]),
+        puzzle_date=city_today_key(user.get("profile_city") or DEFAULT_CITY),
+    )
 
 
 @app.post("/api/daily-puzzle/answer")
 async def api_answer_daily_puzzle(payload: DailyPuzzleAnswer, user: Dict[str, Any] = Depends(current_user)):
     try:
-        result = await db.answer_daily_puzzle(int(user["telegram_id"]), payload.selected_move)
+        result = await db.answer_daily_puzzle(
+            int(user["telegram_id"]),
+            payload.selected_move,
+            puzzle_date=city_today_key(user.get("profile_city") or DEFAULT_CITY),
+        )
     except ValueError as exc:
         if str(exc) == "INVALID_MOVE":
             raise HTTPException(status_code=400, detail="Некорректный ход") from exc
@@ -492,7 +534,9 @@ async def api_answer_daily_puzzle(payload: DailyPuzzleAnswer, user: Dict[str, An
 
 @app.get("/api/games")
 async def api_games(city: str = DEFAULT_CITY, user: Dict[str, Any] = Depends(current_user)):
-    games = await db.list_games(city=city or DEFAULT_CITY)
+    if not is_supported_city(city):
+        raise HTTPException(status_code=400, detail="Unsupported city")
+    games = await db.list_games(city=canonical_city(city))
     return {"games": games}
 
 

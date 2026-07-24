@@ -8,6 +8,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.request import urlopen
+from .cities import canonical_city, city_today_key
 
 import aiosqlite
 
@@ -513,6 +514,7 @@ class Database:
 
     async def upsert_user(self, tg_user: Dict[str, Any], default_city: str = "Минск") -> Dict[str, Any]:
         telegram_id = int(tg_user["id"])
+        default_city = canonical_city(default_city)
         created_updated = now_iso()
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
@@ -576,7 +578,7 @@ class Database:
     async def update_user_profile(self, telegram_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         ts = now_iso()
         display_name = (data.get("display_name") or "Игрок").strip()[:80]
-        profile_city = (data.get("profile_city") or data.get("city") or "Минск").strip()[:80]
+        profile_city = canonical_city(data.get("profile_city") or data.get("city") or "Минск")
         level = (data.get("level") or "Средний").strip()[:80]
         bio = (data.get("bio") or "").strip()[:300]
         photo_data_url = (data.get("photo_data_url") or "").strip()
@@ -614,16 +616,36 @@ class Database:
                 raise ValueError("USER_NOT_FOUND")
             return self._normalize_user(dict(rows[0]))
 
-    async def update_user_preferences(self, telegram_id: int, *, ui_language: str) -> Dict[str, Any]:
-        language = (ui_language or "").strip().lower()
-        if language not in {"ru", "en"}:
+    async def update_user_preferences(
+        self,
+        telegram_id: int,
+        *,
+        ui_language: Optional[str] = None,
+        profile_city: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        language = (ui_language or "").strip().lower() if ui_language is not None else None
+        if language is not None and language not in {"ru", "en"}:
             raise ValueError("INVALID_LANGUAGE")
+        city = canonical_city(profile_city) if profile_city is not None else None
+        if language is None and city is None:
+            raise ValueError("NO_PREFERENCES")
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
-            await db.execute(
-                "UPDATE users SET ui_language = ?, updated_at = ? WHERE telegram_id = ?",
-                (language, now_iso(), telegram_id),
-            )
+            if language is not None and city is not None:
+                await db.execute(
+                    "UPDATE users SET ui_language = ?, profile_city = ?, city = ?, updated_at = ? WHERE telegram_id = ?",
+                    (language, city, city, now_iso(), telegram_id),
+                )
+            elif language is not None:
+                await db.execute(
+                    "UPDATE users SET ui_language = ?, updated_at = ? WHERE telegram_id = ?",
+                    (language, now_iso(), telegram_id),
+                )
+            else:
+                await db.execute(
+                    "UPDATE users SET profile_city = ?, city = ?, updated_at = ? WHERE telegram_id = ?",
+                    (city, city, now_iso(), telegram_id),
+                )
             await db.commit()
             rows = await db.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
             if not rows:
@@ -659,7 +681,7 @@ class Database:
                 """,
                 (
                     creator_telegram_id,
-                    data.get("city") or default_city,
+                    canonical_city(data.get("city") or default_city),
                     data["place"].strip(),
                     (data.get("area") or "").strip(),
                     (data.get("address") or "").strip(),
@@ -721,7 +743,7 @@ class Database:
                 WHERE id = ?
                 """,
                 (
-                    (data.get("city") or game.get("city") or "Минск").strip(),
+                    canonical_city(data.get("city") or game.get("city") or "Минск"),
                     (data.get("place") or game.get("place") or "").strip(),
                     (data.get("area") or "").strip(),
                     (data.get("address") or "").strip(),
@@ -1293,23 +1315,33 @@ class Database:
         return due
 
 
-    async def get_users_for_streak_reminder(self) -> List[Dict[str, Any]]:
-        today = self._today_key()
-        yesterday = self._yesterday_key()
+    async def get_users_for_streak_reminder(
+        self,
+        city: Optional[str] = None,
+        today_key: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        today = today_key or self._today_key()
+        try:
+            yesterday = (datetime.fromisoformat(today).date() - timedelta(days=1)).isoformat()
+        except ValueError:
+            yesterday = self._yesterday_key()
         await self.normalize_all_puzzle_streaks()
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
+            city_filter = "AND COALESCE(profile_city, city, 'Минск') = ?" if city else ""
+            params: tuple[Any, ...] = (yesterday, today, canonical_city(city)) if city else (yesterday, today)
             rows = await db.execute_fetchall(
-                """
+                f"""
                 SELECT * FROM users
                 WHERE COALESCE(puzzle_streak, 0) > 0
                   AND COALESCE(notify_puzzle_streak, 1) = 1
                   AND COALESCE(puzzle_last_solved_date, '') = ?
                   AND COALESCE(puzzle_reminder_sent_date, '') != ?
+                  {city_filter}
                 ORDER BY puzzle_streak DESC
                 LIMIT 500
                 """,
-                (yesterday, today),
+                params,
             )
             users = [self._normalize_user(dict(row)) for row in rows]
             if users:
@@ -1398,10 +1430,13 @@ class Database:
         return await self.list_user_badges(telegram_id, public_only=False)
 
     async def get_public_user(self, telegram_id: int, viewer_telegram_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        await self.normalize_puzzle_streak(telegram_id)
         user = await self.get_user(telegram_id)
         if not user:
             return None
+        user = await self.normalize_puzzle_streak(
+            telegram_id,
+            today_key=city_today_key(user.get("profile_city") or user.get("city") or "Минск"),
+        )
         public_user = self._public_user(user)
         public_user["reliability"] = await self._user_reliability(telegram_id)
         public_user["badges"] = await self.list_user_badges(telegram_id, public_only=True)
@@ -1659,7 +1694,7 @@ class Database:
     def _yesterday_key(self) -> str:
         return (self._moscow_today() - timedelta(days=1)).isoformat()
 
-    def _is_streak_stale(self, last_solved_date: str) -> bool:
+    def _is_streak_stale(self, last_solved_date: str, today_key: Optional[str] = None) -> bool:
         """A streak survives today if the user solved today or yesterday.
 
         If the last solved date is older than yesterday in MSK time, the user
@@ -1667,9 +1702,14 @@ class Database:
         """
         if not last_solved_date:
             return False
-        return last_solved_date < self._yesterday_key()
+        key = today_key or self._today_key()
+        try:
+            yesterday = (datetime.fromisoformat(key).date() - timedelta(days=1)).isoformat()
+        except ValueError:
+            yesterday = self._yesterday_key()
+        return last_solved_date < yesterday
 
-    async def normalize_puzzle_streak(self, telegram_id: int) -> Dict[str, Any]:
+    async def normalize_puzzle_streak(self, telegram_id: int, today_key: Optional[str] = None) -> Dict[str, Any]:
         """Reset stale puzzle streaks using 00:00 MSK day boundaries.
 
         Called from bootstrap/profile/daily-puzzle/reminder flows so the profile
@@ -1684,7 +1724,7 @@ class Database:
             user = dict(rows[0])
             last_solved = user.get("puzzle_last_solved_date") or ""
             current_streak = int(user.get("puzzle_streak") or 0)
-            if current_streak > 0 and self._is_streak_stale(last_solved):
+            if current_streak > 0 and self._is_streak_stale(last_solved, today_key):
                 await db.execute(
                     "UPDATE users SET puzzle_streak = 0, updated_at = ? WHERE telegram_id = ?",
                     (now_iso(), telegram_id),
@@ -1696,11 +1736,18 @@ class Database:
     async def normalize_all_puzzle_streaks(self) -> int:
         """Reset stale streaks in batch; useful for startup/admin/export."""
         async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
             rows = await db.execute_fetchall(
-                "SELECT telegram_id FROM users WHERE COALESCE(puzzle_streak, 0) > 0 AND COALESCE(puzzle_last_solved_date, '') < ?",
-                (self._yesterday_key(),),
+                "SELECT telegram_id, profile_city, city, puzzle_last_solved_date FROM users WHERE COALESCE(puzzle_streak, 0) > 0"
             )
-            ids = [int(row[0]) for row in rows]
+            ids = [
+                int(row["telegram_id"])
+                for row in rows
+                if self._is_streak_stale(
+                    row["puzzle_last_solved_date"] or "",
+                    city_today_key(row["profile_city"] or row["city"] or "Минск"),
+                )
+            ]
             if ids:
                 await db.executemany(
                     "UPDATE users SET puzzle_streak = 0, updated_at = ? WHERE telegram_id = ?",
@@ -1723,7 +1770,7 @@ class Database:
     async def get_daily_puzzle(self, telegram_id: int, puzzle_date: Optional[str] = None) -> Dict[str, Any]:
         key = puzzle_date or self._today_key()
         puzzle = self._daily_puzzle_for_date(key)
-        user = await self.normalize_puzzle_streak(telegram_id)
+        user = await self.normalize_puzzle_streak(telegram_id, today_key=key)
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             rows = await db.execute_fetchall(
@@ -1802,9 +1849,13 @@ class Database:
                 user = dict(user_rows[0]) if user_rows else {}
                 last_solved = user.get("puzzle_last_solved_date") or ""
                 current_streak = int(user.get("puzzle_streak") or 0)
-                if current_streak > 0 and self._is_streak_stale(last_solved):
+                if current_streak > 0 and self._is_streak_stale(last_solved, key):
                     current_streak = 0
-                if last_solved == self._yesterday_key():
+                try:
+                    yesterday_key = (datetime.fromisoformat(key).date() - timedelta(days=1)).isoformat()
+                except ValueError:
+                    yesterday_key = self._yesterday_key()
+                if last_solved == yesterday_key:
                     new_streak = current_streak + 1
                 elif last_solved == key:
                     new_streak = current_streak
@@ -2125,7 +2176,7 @@ class Database:
     def _normalize_user(self, user: Dict[str, Any]) -> Dict[str, Any]:
         user["show_telegram_username"] = bool(user.get("show_telegram_username"))
         user["display_name"] = user.get("display_name") or user.get("first_name") or user.get("username") or "Игрок"
-        user["profile_city"] = user.get("profile_city") or user.get("city") or "Минск"
+        user["profile_city"] = canonical_city(user.get("profile_city") or user.get("city") or "Минск")
         user["level"] = user.get("level") or "Средний"
         user["bio"] = user.get("bio") or ""
         user["photo_data_url"] = user.get("photo_data_url") or ""

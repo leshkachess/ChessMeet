@@ -150,13 +150,19 @@ async def notify_game_reminder(bot: Bot, telegram_id: int, game: Dict, reminder_
     )
 
 
-async def notify_puzzle_streak_reminder(bot: Bot, telegram_id: int, streak: int, webapp_url: str) -> None:
+async def notify_puzzle_streak_reminder(
+    bot: Bot,
+    telegram_id: int,
+    streak: int,
+    webapp_url: str,
+    city: str = "Минск",
+) -> None:
     await bot.send_message(
         chat_id=telegram_id,
         text=(
             "🧩 <b>Не потеряй серию!</b>\n\n"
             f"У тебя серия {streak}. Сегодняшняя задача ещё не решена.\n"
-            "Открой задачу дня до полуночи по МСК."
+            f"Открой задачу дня до полуночи по времени города {city}."
         ),
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="Решить задачку", web_app=WebAppInfo(url=f"{webapp_url}?screen=puzzle"))]]

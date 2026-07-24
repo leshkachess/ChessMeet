@@ -16,7 +16,6 @@
     'Найди соперника и сыграй за настоящей доской': 'Find an opponent and play over a real board',
     '+ Создать партию': '+ Create a game',
     'Найти партию': 'Find a game',
-    'Список заявок в Минске': 'Open games in Minsk',
     'Мои встречи': 'My meetups',
     'Отклики, чаты, оценки': 'Responses, chats, ratings',
     'Ближайшие заявки': 'Upcoming games',
@@ -87,6 +86,8 @@
     'Фото': 'Photo',
     'Публичное имя': 'Public name',
     'Город': 'City',
+    'Беларусь': 'Belarus',
+    'Россия': 'Russia',
     'О себе': 'About me',
     'Коротко о себе': 'A short bio',
     'Показывать Telegram username': 'Show Telegram username',
@@ -113,7 +114,7 @@
     'По умолчанию — светлая': 'Light by default',
     'Можно переключить на тёмную или системную тему.': 'You can switch to a dark or system theme.',
     'Когда другой игрок публикует партию в твоём городе': 'When another player posts a game in your city',
-    'В 21:00 МСК, если задача дня ещё не решена': 'At 21:00 Moscow time if the daily puzzle is not solved',
+    'В 21:00 по времени выбранного города, если задача дня ещё не решена': 'At 21:00 in the selected city if the daily puzzle is not solved',
     'Профиль сохранён': 'Profile saved',
     'Пригласить друга': 'Invite a friend',
     'Поделиться приглашением': 'Share invitation',
@@ -173,8 +174,8 @@
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(node => { node.nodeValue = translateText(node.nodeValue, lang); });
-    root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
-      ['placeholder', 'title', 'aria-label'].forEach(attr => {
+    root.querySelectorAll('[placeholder],[title],[aria-label],optgroup[label]').forEach(el => {
+      ['placeholder', 'title', 'aria-label', 'label'].forEach(attr => {
         if (el.hasAttribute(attr)) el.setAttribute(attr, translateText(el.getAttribute(attr), lang));
       });
     });
