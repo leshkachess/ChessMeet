@@ -32,7 +32,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '0.14.1';
+const APP_VERSION = '0.14.2';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -143,6 +143,17 @@ function h(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function safeMapUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && ['openstreetmap.org', 'www.openstreetmap.org'].includes(url.hostname)
+      ? url.toString()
+      : '';
+  } catch (_) {
+    return '';
+  }
 }
 
 function initials(name) {
@@ -342,8 +353,8 @@ function afterRender() {
   updateCountdown();
 }
 
-function destroyMapIfNeeded() {
-  if (state.screen !== 'create' && state.map) {
+function destroyMapIfNeeded(force = false) {
+  if (state.map && (force || state.screen !== 'create')) {
     try { state.map.remove(); } catch (_) {}
     state.map = null;
     state.marker = null;
@@ -368,7 +379,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.1</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v0.14.2</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
       </div>
@@ -480,7 +491,7 @@ function gameCard(game) {
       ${game.place_rating?.count ? `<div class="place-rating-line">📍 Место: ${Number(game.place_rating.avg || 0).toFixed(1)}★ · ${game.place_rating.count}</div>` : ''}
       ${game.comment ? `<p class="game-comment">${h(game.comment)}</p>` : ''}
       <div class="game-actions">
-        ${game.map_url ? `<a class="ghost-action" href="${h(game.map_url)}" target="_blank">Карта</a>` : ''}
+        ${safeMapUrl(game.map_url) ? `<a class="ghost-action" href="${h(safeMapUrl(game.map_url))}" target="_blank" rel="noopener noreferrer">Карта</a>` : ''}
         <button class="ghost-action" data-view-profile="${game.creator?.telegram_id || game.creator_telegram_id}">Профиль</button>
         ${mine ? `<button class="primary-action" data-nav="my">Моя заявка</button>` : `<button class="primary-action" data-respond="${game.id}">Откликнуться</button>`}
       </div>
@@ -622,7 +633,7 @@ function createScreen() {
         <label>Район / ориентир<input name="area" value="${h(state.selectedPlace?.area || defaults.area || '')}" placeholder="Немига, центр, Восток" /></label>
         <label>Адрес<input name="address" value="${h(state.selectedPlace?.address || defaults.address || '')}" placeholder="Можно поставить точку на карте" /></label>
         <div id="create-map" class="map-v7"></div>
-        ${state.selectedPlace ? `<div class="map-picked">✓ Точка выбрана · <a href="${h(state.selectedPlace.map_url)}" target="_blank">открыть карту</a></div>` : `<div class="map-hint">Нажми на карту, чтобы сохранить точную точку встречи.</div>`}
+        ${safeMapUrl(state.selectedPlace?.map_url) ? `<div class="map-picked">✓ Точка выбрана · <a href="${h(safeMapUrl(state.selectedPlace.map_url))}" target="_blank" rel="noopener noreferrer">открыть карту</a></div>` : `<div class="map-hint">Нажми на карту, чтобы сохранить точную точку встречи.</div>`}
       </section>
       <section class="flow-card"><div class="step-label">3 · Детали</div>
         <label class="toggle-row"><span>У меня есть доска<small>Если выключено — ищешь соперника с доской</small></span><input type="checkbox" name="has_board" ${defaults.has_board ? 'checked' : ''} /></label>
@@ -724,7 +735,7 @@ function myGameCard(game) {
         ${game.status === 'confirmed' ? `<button class="ghost-action" data-add-calendar="${game.id}">В календарь</button>` : ''}
         ${isCreator && ['open','pending'].includes(game.status) && !game.accepted_response_id ? `<button class="ghost-action" data-edit-game="${game.id}">Редактировать</button>` : ''}
         ${canChat ? `<button class="ghost-action" data-rematch="${game.id}">Реванш</button>` : ''}
-        ${game.map_url ? `<a class="ghost-action" href="${h(game.map_url)}" target="_blank">Карта</a>` : ''}
+        ${safeMapUrl(game.map_url) ? `<a class="ghost-action" href="${h(safeMapUrl(game.map_url))}" target="_blank" rel="noopener noreferrer">Карта</a>` : ''}
         ${canCancel ? `<button class="ghost-action danger-text" data-cancel-game="${game.id}">Отменить</button>` : ''}
       </div>
     </article>
@@ -932,7 +943,9 @@ function renderScreen() {
 
 function render() {
   applyTheme(currentThemeMode());
-  destroyMapIfNeeded();
+  // app.innerHTML replaces the map container. Leaflet must be detached first,
+  // otherwise it remains bound to a stale DOM node and the next map is blank.
+  destroyMapIfNeeded(true);
   app.innerHTML = shell(renderScreen());
   window.ChessMeetI18n.apply(app, currentLanguage());
   bindEvents();
@@ -1289,26 +1302,40 @@ function ensureCountdown() { if (!state.countdownInterval) state.countdownInterv
 function initCreateMap() {
   const el = document.getElementById('create-map');
   if (!el || !window.L || state.map) return;
-  state.map = L.map(el, { zoomControl: false }).setView([53.9, 27.5667], 12);
+  const selectedLat = Number(state.selectedPlace?.latitude);
+  const selectedLng = Number(state.selectedPlace?.longitude);
+  const hasSelectedCoordinates = Number.isFinite(selectedLat) && Number.isFinite(selectedLng);
+  const center = hasSelectedCoordinates ? [selectedLat, selectedLng] : [53.9, 27.5667];
+  state.map = L.map(el, { zoomControl: false }).setView(center, hasSelectedCoordinates ? 16 : 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OSM' }).addTo(state.map);
   L.control.zoom({ position: 'bottomright' }).addTo(state.map);
-  if (state.selectedPlace) addMarker(state.selectedPlace.latitude, state.selectedPlace.longitude);
+  if (hasSelectedCoordinates) addMarker(selectedLat, selectedLng);
   state.map.on('click', async e => {
     const { lat, lng } = e.latlng;
     addMarker(lat, lng);
+    state.map.panTo([lat, lng]);
     let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     let place = 'Точка на карте';
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(currentLanguage())}&lat=${lat}&lon=${lng}`);
+      if (!res.ok) throw new Error('Reverse geocoding failed');
       const data = await res.json();
       address = data.display_name || address;
       place = data.name || data.address?.amenity || data.address?.road || place;
     } catch (_) {}
-    state.selectedPlace = { latitude: lat, longitude: lng, address, place, area: 'Минск', map_url: `https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lng.toFixed(6)}#map=17/${lat.toFixed(6)}/${lng.toFixed(6)}` };
+    const cityInput = document.querySelector('#create-form input[name="city"]');
+    const currentCityValue = cityInput?.value?.trim() || state.me?.profile_city || state.config?.default_city || 'Минск';
+    state.selectedPlace = { latitude: lat, longitude: lng, address, place, area: currentCityValue, map_url: `https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lng.toFixed(6)}#map=17/${lat.toFixed(6)}/${lng.toFixed(6)}` };
     render();
   });
   setTimeout(() => state.map?.invalidateSize(), 200);
 }
-function addMarker(lat, lng) { if (state.marker) state.marker.remove(); state.marker = L.marker([lat, lng]).addTo(state.map); }
+function addMarker(lat, lng) {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  if (!state.map || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+  if (state.marker) state.marker.remove();
+  state.marker = L.marker([latitude, longitude]).addTo(state.map);
+}
 
 bootstrap();

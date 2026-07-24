@@ -1,31 +1,35 @@
-# ChessMeet v0.13.1 — Railway Ready audit
+# ChessMeet v0.14.2 — security and stability audit
+
+## Исправлено
+
+- `DEV_MODE` по умолчанию выключен: production больше не открывается как demo-пользователь при отсутствии переменной окружения.
+- Telegram `initData` требует `auth_date`, отклоняет устаревшие и будущие данные.
+- Сравнение admin-токена выполняется constant-time методом.
+- CORS ограничен доменом `WEBAPP_URL`; localhost добавляется только в dev-режиме.
+- Добавлены CSP, `nosniff`, Referrer Policy и Permissions Policy.
+- Публичный `/health` больше не раскрывает путь к базе данных.
+- Восстановление базы ограничено размером 250 MB и сохраняет проверку целостности SQLite.
+- Фото профиля и партий принимаются только как PNG, JPEG, WebP или GIF data URL.
+- Координаты и ссылки карты валидируются сервером; опасные URL не выводятся во frontend.
+- Внешние ссылки карты используют `noopener noreferrer`.
+- Исправлен жизненный цикл Leaflet: карта корректно пересоздаётся после рендера и выбора точки.
+- Обратное геокодирование учитывает язык интерфейса, выбранная точка центрируется и сохраняется.
 
 ## Проверено
 
-- Python-синтаксис `src/*.py`, launcher и remote admin client.
-- JavaScript-синтаксис `webapp/app.js`.
-- Версии в backend/frontend обновлены до `0.13.1`.
-- Добавлены Railway deploy files.
-- Добавлены защищённые admin endpoints.
-- Исправлена логика сброса серии задачки по 00:00 МСК.
+- Компиляция всех Python-модулей.
+- Инициализация и миграции новой SQLite-базы.
+- Bootstrap, профиль, настройки языка и создание заявки через API.
+- Отклонение опасной ссылки карты и координат вне допустимого диапазона.
+- Границы проверки Telegram-аутентификации.
 
-## Новое
-
-- `railway.toml`
-- `Procfile`
-- `README_DEPLOY_RAILWAY.md`
-- `chessmeet_remote_admin.py`
-- `RUN_REMOTE_ADMIN_CLIENT.bat`
-- remote admin API: `/api/admin/*`
-
-## Важно
-
-Для Railway обязательно установи:
+## Production-настройки
 
 ```env
 DEV_MODE=false
 DATABASE_PATH=/data/chess_irl.sqlite3
 ADMIN_TOKEN=long_random_secret
+WEBAPP_URL=https://your-production-domain
 ```
 
-И подключи Railway Volume на `/data`, если остаёшься на SQLite.
+Для SQLite на Railway необходим постоянный Volume, подключённый к `/data`.

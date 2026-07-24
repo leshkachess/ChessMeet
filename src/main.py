@@ -5,6 +5,8 @@ import os
 import csv
 import io
 import shutil
+import hmac
+from urllib.parse import urlsplit
 from datetime import datetime, timezone
 import aiosqlite
 from contextlib import asynccontextmanager
@@ -18,7 +20,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .auth import TelegramAuthError, demo_user, validate_telegram_init_data
 from .bot import (
@@ -44,7 +46,7 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:8000").rstrip("/")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
-DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "chess_irl.sqlite3"))
 DEFAULT_CITY = os.getenv("DEFAULT_CITY", "Минск")
 
@@ -75,6 +77,31 @@ class GameCreate(BaseModel):
     level: str = Field(min_length=2, max_length=80)
     has_board: bool = True
     comment: str = Field(default="", max_length=500)
+
+    @field_validator("latitude")
+    @classmethod
+    def validate_latitude(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and not -90 <= value <= 90:
+            raise ValueError("latitude must be between -90 and 90")
+        return value
+
+    @field_validator("longitude")
+    @classmethod
+    def validate_longitude(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and not -180 <= value <= 180:
+            raise ValueError("longitude must be between -180 and 180")
+        return value
+
+    @field_validator("map_url")
+    @classmethod
+    def validate_map_url(cls, value: str) -> str:
+        clean = (value or "").strip()
+        if not clean:
+            return ""
+        parsed = urlsplit(clean)
+        if parsed.scheme != "https" or parsed.hostname not in {"openstreetmap.org", "www.openstreetmap.org"}:
+            raise ValueError("map_url must be an HTTPS OpenStreetMap URL")
+        return clean
 
 
 class ProfileUpdate(BaseModel):
@@ -233,17 +260,40 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="Chess IRL Minsk MVP", version="0.13.1", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="0.14.2", lifespan=lifespan)
+
+webapp_origin = urlsplit(WEBAPP_URL)
+allowed_origins = []
+if webapp_origin.scheme in {"http", "https"} and webapp_origin.netloc:
+    allowed_origins.append(f"{webapp_origin.scheme}://{webapp_origin.netloc}")
+if DEV_MODE:
+    allowed_origins.extend(["http://localhost:8000", "http://127.0.0.1:8000"])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory=str(WEBAPP_DIR)), name="static")
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://telegram.org https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org; "
+        "connect-src 'self' https://nominatim.openstreetmap.org; "
+        "font-src 'self' data:; frame-ancestors https://web.telegram.org https://*.telegram.org"
+    )
+    return response
 
 
 async def current_user(x_telegram_init_data: str = Header(default="")) -> Dict[str, Any]:
@@ -264,7 +314,7 @@ async def current_user(x_telegram_init_data: str = Header(default="")) -> Dict[s
 
 
 def require_admin(x_admin_token: str = Header(default="")) -> None:
-    if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN:
+    if not ADMIN_TOKEN or not hmac.compare_digest(x_admin_token, ADMIN_TOKEN):
         raise HTTPException(status_code=403, detail="Admin token required")
 
 
@@ -281,9 +331,8 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "0.13.1",
+        "version": "0.14.2",
         "railway_ready": True,
-        "database_path": DATABASE_PATH,
     }
 
 
@@ -389,6 +438,8 @@ async def api_update_me(payload: ProfileUpdate, user: Dict[str, Any] = Depends(c
     except ValueError as exc:
         if str(exc) == "PHOTO_TOO_LARGE":
             raise HTTPException(status_code=400, detail="Фото слишком большое") from exc
+        if str(exc) == "INVALID_PHOTO":
+            raise HTTPException(status_code=400, detail="Поддерживаются только PNG, JPEG, WebP и GIF") from exc
         raise
     return {"user": updated}
 
@@ -970,11 +1021,16 @@ async def api_admin_db_restore(file: UploadFile = File(...), _: None = Depends(r
 
     temp_path = db_path.with_name(f".{db_path.name}.upload.tmp")
     try:
+        uploaded_size = 0
+        max_upload_size = 250 * 1024 * 1024
         with temp_path.open("wb") as out:
             while True:
                 chunk = await file.read(1024 * 1024)
                 if not chunk:
                     break
+                uploaded_size += len(chunk)
+                if uploaded_size > max_upload_size:
+                    raise HTTPException(status_code=413, detail="Database backup is too large")
                 out.write(chunk)
         validation = await _validate_uploaded_sqlite(temp_path)
 
@@ -1006,8 +1062,7 @@ async def api_admin_db_restore(file: UploadFile = File(...), _: None = Depends(r
 async def api_internal_accept_response(response_id: int, x_admin_token: str = Header(default="")):
     # Protected helper endpoint for potential future webhook/admin integration.
     # Normal Telegram accept flow uses bot callback buttons and does not need this endpoint.
-    if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN:
-        raise HTTPException(status_code=403, detail="Admin token required")
+    require_admin(x_admin_token)
     try:
         accepted = await db.accept_response(response_id)
     except ValueError as exc:

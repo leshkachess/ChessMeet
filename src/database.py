@@ -582,6 +582,8 @@ class Database:
         photo_data_url = (data.get("photo_data_url") or "").strip()
         if len(photo_data_url) > 2_000_000:
             raise ValueError("PHOTO_TOO_LARGE")
+        if photo_data_url and not re.match(r"^data:image/(?:png|jpe?g|webp|gif);base64,", photo_data_url, re.IGNORECASE):
+            raise ValueError("INVALID_PHOTO")
         show_username = 1 if data.get("show_telegram_username") else 0
         notify_game_reminders = 1 if data.get("notify_game_reminders", True) else 0
         notify_new_requests = 1 if data.get("notify_new_requests", False) else 0
@@ -2014,7 +2016,7 @@ class Database:
     async def add_game_photo(self, game_id: int, uploader_telegram_id: int, photo_data_url: str, caption: str = "") -> Dict[str, Any]:
         await self._ensure_after_game_action_available(game_id, uploader_telegram_id)
         photo_data_url = (photo_data_url or "").strip()
-        if not photo_data_url.startswith("data:image/"):
+        if not re.match(r"^data:image/(?:png|jpe?g|webp|gif);base64,", photo_data_url, re.IGNORECASE):
             raise ValueError("INVALID_PHOTO")
         if len(photo_data_url) > 2_500_000:
             raise ValueError("PHOTO_TOO_LARGE")

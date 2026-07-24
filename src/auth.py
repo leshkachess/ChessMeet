@@ -37,13 +37,17 @@ def validate_telegram_init_data(init_data: str, bot_token: str, max_age_seconds:
         raise TelegramAuthError("Invalid initData signature")
 
     auth_date_raw = parsed.get("auth_date")
-    if auth_date_raw:
-        try:
-            auth_date = int(auth_date_raw)
-            if max_age_seconds > 0 and time.time() - auth_date > max_age_seconds:
-                raise TelegramAuthError("initData is too old")
-        except ValueError as exc:
-            raise TelegramAuthError("Invalid auth_date") from exc
+    if not auth_date_raw:
+        raise TelegramAuthError("Missing auth_date")
+    try:
+        auth_date = int(auth_date_raw)
+        age = time.time() - auth_date
+        if age < -60:
+            raise TelegramAuthError("initData auth_date is in the future")
+        if max_age_seconds > 0 and age > max_age_seconds:
+            raise TelegramAuthError("initData is too old")
+    except ValueError as exc:
+        raise TelegramAuthError("Invalid auth_date") from exc
 
     user_raw = parsed.get("user")
     if not user_raw:
