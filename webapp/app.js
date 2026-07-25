@@ -42,7 +42,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.1';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -297,6 +297,20 @@ async function api(path, options = {}) {
 async function bootstrap() {
   try {
     applyTheme(localStorage.getItem(cacheKey('theme_mode')) || 'light');
+    if (!tg?.initData) {
+      for (let attempt = 0; attempt < 15 && !tg?.initData; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    if (!tg?.initData) {
+      let config = {};
+      try {
+        const response = await fetch('/api/config');
+        if (response.ok) config = await response.json();
+      } catch (_) {}
+      renderTelegramLaunch(config.bot_username || '');
+      return;
+    }
     const hadCache = hydrateFromCache();
     if (hadCache) render();
 
@@ -442,7 +456,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.1.0</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.2.1</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1358,6 +1372,22 @@ async function submitProfile(e) {
       submitButton.textContent = tr('Сохранить профиль');
     }
   }
+}
+
+function renderTelegramLaunch(botUsername) {
+  const username = String(botUsername || '').replace(/^@/, '');
+  const link = username ? `https://t.me/${encodeURIComponent(username)}?start=app` : 'https://t.me/';
+  app.innerHTML = `
+    <main class="auth-launch-shell">
+      <section class="auth-launch-card">
+        <div class="auth-launch-icon">♜</div>
+        <div class="step-label">ChessMeet</div>
+        <h1>Открой приложение в Telegram</h1>
+        <p>Для безопасного входа Telegram должен подтвердить твой аккаунт. Обычная ссылка в браузере не содержит данных авторизации.</p>
+        <a class="big-primary auth-launch-button" href="${h(link)}">Открыть ChessMeet в Telegram</a>
+        <small>Если приложение уже открыто в Telegram, закрой это окно и нажми кнопку Mini App в основном боте ещё раз.</small>
+      </section>
+    </main>`;
 }
 async function checkInGame(id, lateMinutes = 0) {
   try {
