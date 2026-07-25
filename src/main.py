@@ -125,6 +125,8 @@ class ProfileUpdate(BaseModel):
     notify_puzzle_streak: bool = True
     theme_mode: str = Field(default="light", max_length=20)
     ui_language: str = Field(default="", max_length=10)
+    subscription_format: str = Field(default="all", max_length=40)
+    subscription_level: str = Field(default="all", max_length=80)
 
     @field_validator("profile_city")
     @classmethod
@@ -161,6 +163,9 @@ class ResponseCreate(BaseModel):
     proposed_date_label: str = Field(default="", max_length=80)
     proposed_time_label: str = Field(default="", max_length=40)
     proposed_comment: str = Field(default="", max_length=300)
+
+class CheckInCreate(BaseModel):
+    late_minutes: int = Field(default=0, ge=0, le=120)
 
 
 class PlaceRatingCreate(BaseModel):
@@ -293,7 +298,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.1.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -317,7 +322,7 @@ async def security_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' https://telegram.org https://unpkg.com; "
@@ -359,6 +364,15 @@ async def index():
     return FileResponse(WEBAPP_DIR / "index.html")
 
 
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    return FileResponse(
+        WEBAPP_DIR / "sw.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
 @app.get("/health")
 async def health():
     return {
@@ -367,7 +381,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.0.0",
+        "version": "1.1.0",
         "railway_ready": True,
     }
 
@@ -552,6 +566,12 @@ async def api_city_stats(city: str, user: Dict[str, Any] = Depends(current_user)
         raise HTTPException(status_code=404, detail="Unsupported city")
     return await db.city_stats(canonical_city(city))
 
+@app.get("/api/cities/{city}/places")
+async def api_city_places(city: str, user: Dict[str, Any] = Depends(current_user)):
+    if not is_supported_city(city):
+        raise HTTPException(status_code=404, detail="Unsupported city")
+    return {"places": await db.popular_places(canonical_city(city))}
+
 
 @app.get("/api/my")
 async def api_my(user: Dict[str, Any] = Depends(current_user)):
@@ -581,6 +601,8 @@ async def api_create_game(payload: GameCreate, user: Dict[str, Any] = Depends(cu
             recipients = await db.list_users_for_new_request_notifications(
                 exclude_telegram_id=int(user["telegram_id"]),
                 city=game.get("city") or DEFAULT_CITY,
+                game_format=game.get("game_format") or "",
+                level=game.get("level") or "",
             )
             for recipient in recipients:
                 try:
@@ -634,6 +656,37 @@ async def api_respond_game(game_id: int, payload: Optional[ResponseCreate] = Non
 
     return {"response": response}
 
+@app.get("/api/games/{game_id}/responses")
+async def api_game_responses(game_id: int, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        return {"responses": await db.list_game_responses(game_id, int(user["telegram_id"]))}
+    except ValueError as exc:
+        status = 404 if str(exc) == "GAME_NOT_FOUND" else 403
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+@app.post("/api/responses/{response_id}/accept")
+async def api_accept_response(response_id: int, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        accepted = await db.accept_response_for_creator(response_id, int(user["telegram_id"]))
+    except ValueError as exc:
+        mapping = {"RESPONSE_NOT_FOUND": 404, "NOT_ALLOWED": 403, "RESPONSE_ALREADY_PROCESSED": 409}
+        raise HTTPException(status_code=mapping.get(str(exc), 400), detail=str(exc)) from exc
+    if bot:
+        try:
+            await notify_response_accepted(bot, db, response_id, WEBAPP_URL)
+        except Exception:
+            pass
+    return {"response": accepted}
+
+@app.post("/api/responses/{response_id}/decline")
+async def api_decline_response(response_id: int, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        declined = await db.decline_response_for_creator(response_id, int(user["telegram_id"]))
+        return {"response": declined}
+    except ValueError as exc:
+        mapping = {"RESPONSE_NOT_FOUND": 404, "NOT_ALLOWED": 403, "RESPONSE_ALREADY_PROCESSED": 409}
+        raise HTTPException(status_code=mapping.get(str(exc), 400), detail=str(exc)) from exc
+
 
 @app.post("/api/games/{game_id}/cancel")
 async def api_cancel_game(game_id: int, payload: Optional[CancelGameRequest] = None, user: Dict[str, Any] = Depends(current_user)):
@@ -665,14 +718,16 @@ async def api_confirm_game(game_id: int, user: Dict[str, Any] = Depends(current_
     return {"game": game}
 
 @app.post("/api/games/{game_id}/check-in")
-async def api_check_in_game(game_id: int, user: Dict[str, Any] = Depends(current_user)):
+async def api_check_in_game(game_id: int, payload: Optional[CheckInCreate] = None, user: Dict[str, Any] = Depends(current_user)):
     try:
-        game = await db.check_in_game(game_id, int(user["telegram_id"]))
+        game = await db.check_in_game(game_id, int(user["telegram_id"]), payload.late_minutes if payload else 0)
         return {"game": game}
     except ValueError as exc:
         mapping = {
             "GAME_NOT_CONFIRMED": (400, "Check-in доступен только для подтверждённой партии"),
             "NOT_ALLOWED": (403, "Check-in доступен только участникам партии"),
+            "CHECK_IN_NOT_AVAILABLE": (400, "Check-in доступен за 45 минут до встречи и ещё 2 часа после начала"),
+            "INVALID_GAME_TIME": (400, "Не удалось определить время встречи"),
         }
         status_code, detail = mapping.get(str(exc), (400, str(exc)))
         raise HTTPException(status_code=status_code, detail=detail) from exc
@@ -941,7 +996,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "0.13.1",
+        "version": "1.1.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "puzzle_streaks_reset_now": reset_count,

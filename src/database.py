@@ -467,6 +467,8 @@ class Database:
             await self._add_column_if_missing(db, "game_requests", "no_show_target_id", "INTEGER")
             await self._add_column_if_missing(db, "game_requests", "creator_checked_in_at", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "game_requests", "responder_checked_in_at", "TEXT DEFAULT ''")
+            await self._add_column_if_missing(db, "game_requests", "creator_late_minutes", "INTEGER NOT NULL DEFAULT 0")
+            await self._add_column_if_missing(db, "game_requests", "responder_late_minutes", "INTEGER NOT NULL DEFAULT 0")
             await self._add_column_if_missing(db, "responses", "proposed_date_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_time_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_comment", "TEXT DEFAULT ''")
@@ -612,6 +614,8 @@ class Database:
         ui_language = (data.get("ui_language") or "").strip().lower()
         if ui_language not in {"ru", "en"}:
             ui_language = ""
+        subscription_format = (data.get("subscription_format") or "all").strip().lower()[:40]
+        subscription_level = (data.get("subscription_level") or "all").strip().lower()[:80]
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             await db.execute(
@@ -620,11 +624,13 @@ class Database:
                 SET display_name = ?, profile_city = ?, city = ?, level = ?, bio = ?,
                     show_telegram_username = ?, photo_data_url = ?,
                     notify_game_reminders = ?, notify_new_requests = ?, notify_puzzle_streak = ?,
-                    theme_mode = ?, ui_language = ?, updated_at = ?
+                    theme_mode = ?, ui_language = ?, subscription_format = ?,
+                    subscription_level = ?, updated_at = ?
                 WHERE telegram_id = ?
                 """,
                 (display_name, profile_city, profile_city, level, bio, show_username, photo_data_url,
-                 notify_game_reminders, notify_new_requests, notify_puzzle_streak, theme_mode, ui_language, ts, telegram_id),
+                 notify_game_reminders, notify_new_requests, notify_puzzle_streak, theme_mode, ui_language,
+                 subscription_format, subscription_level, ts, telegram_id),
             )
             await db.commit()
             rows = await db.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
@@ -679,6 +685,27 @@ class Database:
         row = rows[0] if rows else (0, 0, 0)
         return {"city": city, "players": int(row[0]), "open_games": int(row[1]), "matched_games": int(row[2])}
 
+    async def popular_places(self, city: str, limit: int = 12) -> List[Dict[str, Any]]:
+        city = canonical_city(city)
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                """
+                SELECT g.place, g.address, g.map_url, g.latitude, g.longitude,
+                       COUNT(DISTINCT g.id) AS games_count,
+                       ROUND(AVG(pr.score), 2) AS rating_avg,
+                       COUNT(pr.id) AS rating_count
+                FROM game_requests g
+                LEFT JOIN place_ratings pr ON pr.game_id = g.id
+                WHERE g.city = ? AND COALESCE(g.place, '') != ''
+                GROUP BY LOWER(g.place), LOWER(COALESCE(g.address, ''))
+                ORDER BY rating_count DESC, rating_avg DESC, games_count DESC
+                LIMIT ?
+                """,
+                (city, max(1, min(int(limit), 50))),
+            )
+        return [dict(row) for row in rows]
+
     async def track_event(self, telegram_id: int, event_name: str, event_data: str = "{}") -> None:
         async with aiosqlite.connect(self.path) as db:
             await db.execute(
@@ -687,22 +714,31 @@ class Database:
             )
             await db.commit()
 
-    async def check_in_game(self, game_id: int, telegram_id: int) -> Dict[str, Any]:
+    async def check_in_game(self, game_id: int, telegram_id: int, late_minutes: int = 0) -> Dict[str, Any]:
         game = await self.get_game(game_id)
         if not game or game.get("status") != STATUS_CONFIRMED or not game.get("accepted_response"):
             raise ValueError("GAME_NOT_CONFIRMED")
         creator_id = int(game["creator_telegram_id"])
         responder_id = int(game["accepted_response"]["responder_telegram_id"])
+        scheduled = effective_game_datetime(game)
+        if not scheduled:
+            raise ValueError("INVALID_GAME_TIME")
+        seconds_from_start = (now_dt() - scheduled).total_seconds()
+        if seconds_from_start < -(45 * 60) or seconds_from_start > (2 * 60 * 60):
+            raise ValueError("CHECK_IN_NOT_AVAILABLE")
+        late_minutes = max(0, min(int(late_minutes or 0), 120))
         if telegram_id == creator_id:
             column = "creator_checked_in_at"
+            late_column = "creator_late_minutes"
         elif telegram_id == responder_id:
             column = "responder_checked_in_at"
+            late_column = "responder_late_minutes"
         else:
             raise ValueError("NOT_ALLOWED")
         async with aiosqlite.connect(self.path) as db:
             await db.execute(
-                f"UPDATE game_requests SET {column} = ?, updated_at = ? WHERE id = ?",
-                (now_iso(), now_iso(), game_id),
+                f"UPDATE game_requests SET {column} = ?, {late_column} = ?, updated_at = ? WHERE id = ?",
+                (now_iso(), late_minutes, now_iso(), game_id),
             )
             await db.commit()
         return await self.get_game(game_id) or {}
@@ -1028,6 +1064,65 @@ class Database:
             )
             return dict(rows[0]) if rows else None
 
+    async def list_game_responses(self, game_id: int, creator_telegram_id: int) -> List[Dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            game_rows = await db.execute_fetchall(
+                "SELECT creator_telegram_id FROM game_requests WHERE id = ?",
+                (game_id,),
+            )
+            if not game_rows:
+                raise ValueError("GAME_NOT_FOUND")
+            if int(game_rows[0]["creator_telegram_id"]) != int(creator_telegram_id):
+                raise ValueError("NOT_ALLOWED")
+            rows = await db.execute_fetchall(
+                """
+                SELECT r.*, u.telegram_id, u.username, u.first_name, u.display_name, u.level,
+                       u.photo_data_url, u.rating_avg, u.rating_count
+                FROM responses r
+                JOIN users u ON u.telegram_id = r.responder_telegram_id
+                WHERE r.game_id = ?
+                ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END,
+                         r.updated_at DESC
+                """,
+                (game_id,),
+            )
+        return [
+            {
+                **dict(row),
+                "responder": self._public_user(self._normalize_user(dict(row))),
+            }
+            for row in rows
+        ]
+
+    async def accept_response_for_creator(
+        self,
+        response_id: int,
+        creator_telegram_id: int,
+    ) -> Dict[str, Any]:
+        details = await self.get_response_details(response_id)
+        if not details:
+            raise ValueError("RESPONSE_NOT_FOUND")
+        if int(details["creator_telegram_id"]) != int(creator_telegram_id):
+            raise ValueError("NOT_ALLOWED")
+        if details["status"] != "pending":
+            raise ValueError("RESPONSE_ALREADY_PROCESSED")
+        return await self.accept_response(response_id)
+
+    async def decline_response_for_creator(
+        self,
+        response_id: int,
+        creator_telegram_id: int,
+    ) -> Dict[str, Any]:
+        details = await self.get_response_details(response_id)
+        if not details:
+            raise ValueError("RESPONSE_NOT_FOUND")
+        if int(details["creator_telegram_id"]) != int(creator_telegram_id):
+            raise ValueError("NOT_ALLOWED")
+        if details["status"] != "pending":
+            raise ValueError("RESPONSE_ALREADY_PROCESSED")
+        return await self.decline_response(response_id)
+
     async def accept_response(self, response_id: int) -> Dict[str, Any]:
         ts = now_iso()
         async with aiosqlite.connect(self.path) as db:
@@ -1298,7 +1393,14 @@ class Database:
             return [dict(row) for row in rows]
 
 
-    async def list_users_for_new_request_notifications(self, exclude_telegram_id: int, city: str = "Минск", limit: int = 200) -> List[Dict[str, Any]]:
+    async def list_users_for_new_request_notifications(
+        self,
+        exclude_telegram_id: int,
+        city: str = "Минск",
+        game_format: str = "",
+        level: str = "",
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             rows = await db.execute_fetchall(
@@ -1307,10 +1409,12 @@ class Database:
                 WHERE telegram_id != ?
                   AND COALESCE(notify_new_requests, 0) = 1
                   AND COALESCE(profile_city, city, 'Минск') = ?
+                  AND (COALESCE(subscription_format, 'all') = 'all' OR LOWER(?) LIKE '%' || LOWER(subscription_format) || '%')
+                  AND (COALESCE(subscription_level, 'all') = 'all' OR LOWER(?) = LOWER(subscription_level))
                 ORDER BY updated_at DESC
                 LIMIT ?
                 """,
-                (exclude_telegram_id, city, limit),
+                (exclude_telegram_id, city, game_format, level, limit),
             )
             return [self._normalize_user(dict(row)) for row in rows]
     async def get_due_game_reminders(self) -> List[Dict[str, Any]]:
@@ -2244,6 +2348,8 @@ class Database:
         user["notify_game_reminders"] = bool(user.get("notify_game_reminders", 1))
         user["notify_new_requests"] = bool(user.get("notify_new_requests", 0))
         user["notify_puzzle_streak"] = bool(user.get("notify_puzzle_streak", 1))
+        user["subscription_format"] = user.get("subscription_format") or "all"
+        user["subscription_level"] = user.get("subscription_level") or "all"
         user["theme_mode"] = user.get("theme_mode") or "light"
         if user["theme_mode"] not in {"light", "dark", "system"}:
             user["theme_mode"] = "light"

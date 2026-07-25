@@ -29,7 +29,11 @@ const state = {
   gamesDate: 'all',
   gamesBoard: 'all',
   responseGameId: null,
+  responsesPanelGameId: null,
+  gameResponses: [],
   cityStats: null,
+  cityPlaces: [],
+  userLocation: null,
   showGameHistory: false,
   editingGameId: null,
   draftNoticeHidden: false,
@@ -38,7 +42,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -188,6 +192,17 @@ function safeMapUrl(value) {
   }
 }
 
+function distanceKm(latitude, longitude) {
+  if (!state.userLocation) return null;
+  const lat2 = Number(latitude), lon2 = Number(longitude);
+  if (!Number.isFinite(lat2) || !Number.isFinite(lon2)) return null;
+  const toRad = value => value * Math.PI / 180;
+  const lat1 = state.userLocation.latitude, lon1 = state.userLocation.longitude;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function initials(name) {
   return (name || 'И').trim().slice(0, 1).toUpperCase();
 }
@@ -318,6 +333,7 @@ async function hydrate({ silent = false } = {}) {
   const tasks = [];
   if (['home', 'games'].includes(state.screen)) tasks.push(loadGames());
   if (['home', 'games'].includes(state.screen)) tasks.push(loadCityStats());
+  if (state.screen === 'home') tasks.push(loadCityPlaces());
   if (['home', 'my'].includes(state.screen)) tasks.push(loadMy());
   if (['home', 'profile', 'puzzle'].includes(state.screen)) tasks.push(loadDailyPuzzle());
   if (state.screen === 'chat' && state.activeChatGameId) tasks.push(loadChat(state.activeChatGameId));
@@ -353,6 +369,11 @@ async function loadDailyPuzzle() {
 
 async function loadCityStats() {
   state.cityStats = await api(`/api/cities/${currentCity()}/stats`);
+}
+
+async function loadCityPlaces() {
+  const data = await api(`/api/cities/${currentCity()}/places`);
+  state.cityPlaces = data.places || [];
 }
 
 async function loadChat(gameId) {
@@ -408,6 +429,7 @@ function shell(content) {
       <section class="content">${content}</section>
       ${bottomNav()}
       ${responseModal()}
+      ${responsesManagerModal()}
     </main>
   `;
 }
@@ -420,7 +442,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.0.0</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.1.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -491,12 +513,36 @@ function homeScreen() {
       ${quickAction('profile', 'profile', 'Профиль', ratingText(state.me))}
     </section>
 
+    ${state.cityPlaces.length ? `<section class="section-head-v7"><div><h3>Популярные места</h3><p>Здесь уже играют в ${h(selectedCity())}</p></div></section><div class="places-strip">${state.cityPlaces.slice(0, 6).map(placeCard).join('')}</div>` : ''}
+
     <section class="section-head-v7">
       <div><h3>Ближайшие заявки</h3><p>Новые партии, на которые можно откликнуться</p></div>
       <button data-nav="games">Все</button>
     </section>
     <div class="card-list">${state.games.slice(0, 3).map(gameCard).join('') || emptyCityState()}</div>
   `;
+}
+
+function placeCard(place) {
+  const url = safeMapUrl(place.map_url);
+  return `<article class="place-card"><span>♟</span><strong>${h(place.place)}</strong><small>${h(place.address || selectedCity())}</small><div>${place.rating_count ? `${Number(place.rating_avg || 0).toFixed(1)} ★` : 'Новое место'} · ${Number(place.games_count || 0)} партий</div>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">На карте</a>` : ''}</article>`;
+}
+
+function responsesManagerModal() {
+  if (!state.responsesPanelGameId) return '';
+  return `<div class="modal-backdrop" data-close-responses>
+    <section class="response-modal" data-modal-panel role="dialog" aria-modal="true" aria-label="Отклики">
+      <button class="modal-close" type="button" data-close-responses>×</button>
+      <div class="step-label">Кандидаты</div><h2>Отклики на партию</h2>
+      <div class="candidate-list">${state.gameResponses.map(item => {
+        const user = item.responder || {};
+        return `<article class="candidate-card">${userStrip(user)}
+          <div class="candidate-proposal"><b>${h(item.proposed_date_label || 'Дата без изменений')} · ${h(item.proposed_time_label || 'время без изменений')}</b><p>${h(item.proposed_comment || 'Без комментария')}</p></div>
+          ${item.status === 'pending' ? `<div class="game-actions"><button class="ghost-action danger-text" data-decline-response="${item.id}">Отклонить</button><button class="primary-action" data-accept-response="${item.id}">Принять</button></div>` : `<span class="status muted">${h(item.status)}</span>`}
+        </article>`;
+      }).join('') || '<p class="muted-copy">Откликов пока нет.</p>'}</div>
+    </section>
+  </div>`;
 }
 
 function responseModal() {
@@ -553,6 +599,7 @@ function userStrip(user, extra = '') {
 function gameCard(game) {
   const mine = state.me && Number(game.creator_telegram_id) === Number(state.me.telegram_id);
   const tone = STATUS_TONES[game.status] || 'muted';
+  const distance = distanceKm(game.latitude, game.longitude);
   return `
     <article class="game-card">
       <div class="game-card-top">
@@ -564,6 +611,7 @@ function gameCard(game) {
         <span>📍 ${h(game.area || game.city || 'Минск')}</span>
         <span>🗓 ${h(game.date_label)} ${game.is_flexible ? `${h(game.time_window_start || game.time_label)}–${h(game.time_window_end || '')}` : h(game.time_label)}</span>
         <span>⏱ ${h(game.game_format)}</span>
+        ${distance !== null ? `<span>↗ ${distance < 10 ? distance.toFixed(1) : Math.round(distance)} км</span>` : ''}
         <span>${game.has_board ? '♟ Доска есть' : '♟ Нужна доска'}</span>
       </div>
       ${game.place_rating?.count ? `<div class="place-rating-line">📍 Место: ${Number(game.place_rating.avg || 0).toFixed(1)}★ · ${game.place_rating.count}</div>` : ''}
@@ -580,7 +628,7 @@ function gameCard(game) {
 function gamesScreen() {
   const q = state.gamesQuery.trim().toLowerCase();
   const openCount = state.games.filter(g => g.status === 'open').length;
-  const filtered = state.games.filter(g => {
+  let filtered = state.games.filter(g => {
     const text = `${g.place} ${g.area} ${g.address} ${g.game_format} ${g.level}`.toLowerCase();
     const qOk = !q || text.includes(q);
     const fOk = state.gamesFormat === 'all' || String(g.game_format || '').toLowerCase().includes(state.gamesFormat);
@@ -594,6 +642,9 @@ function gamesScreen() {
       || (state.gamesDate === 'tomorrow' && dateKey === tomorrow.toISOString().slice(0, 10));
     return qOk && fOk && levelOk && boardOk && dateOk;
   });
+  if (state.userLocation) {
+    filtered = [...filtered].sort((a, b) => (distanceKm(a.latitude, a.longitude) ?? Infinity) - (distanceKm(b.latitude, b.longitude) ?? Infinity));
+  }
   return `
     <section class="games-summary-card">
       <div>
@@ -603,6 +654,7 @@ function gamesScreen() {
       <button data-nav="create">+ Создать</button>
     </section>
     <section class="tool-card">
+      <button class="location-button ${state.userLocation ? 'active' : ''}" data-use-location>${state.userLocation ? '✓ Сначала ближайшие' : '◎ Показать ближайшие ко мне'}</button>
       <label class="search-field"><span>⌕</span><input id="games-search" placeholder="Поиск по месту, району, формату" value="${h(state.gamesQuery)}" /></label>
       <div class="chip-row">
         ${filterChip('all', 'Все')}${filterChip('блиц', 'Блиц')}${filterChip('рапид', 'Рапид')}${filterChip('классика', 'Классика')}
@@ -817,13 +869,14 @@ function myGameCard(game) {
       <div class="game-title">${h(game.place)}</div>
       ${opponent ? `<div class="opponent-panel">${userStrip(opponent)}</div>` : ''}
       <div class="game-meta"><span>🗓 ${h(game.date_label)} ${game.is_flexible ? `${h(game.time_window_start || game.time_label)}–${h(game.time_window_end || '')}` : h(game.time_label)}</span><span>⏱ ${h(game.game_format)}</span><span>${game.status === 'confirmed' ? 'Чат открыт' : 'Ожидание'}</span></div>
-      ${game.status === 'confirmed' ? `<div class="checkin-strip"><span>${game.creator_checked_in ? '✓ Автор на месте' : 'Автор ещё не отметился'} · ${game.responder_checked_in ? '✓ Соперник на месте' : 'Соперник ещё не отметился'}</span>${!myCheckedIn ? `<button class="primary-action" data-check-in="${game.id}">Я на месте</button>` : `<b>✓ Ты на месте</b>`}</div>` : ''}
+      ${game.status === 'confirmed' ? `<div class="checkin-strip"><span>${game.creator_checked_in ? `✓ Автор ${game.creator_late_minutes ? `опаздывает на ${game.creator_late_minutes} мин.` : 'на месте'}` : 'Автор ещё не отметился'} · ${game.responder_checked_in ? `✓ Соперник ${game.responder_late_minutes ? `опаздывает на ${game.responder_late_minutes} мин.` : 'на месте'}` : 'Соперник ещё не отметился'}</span>${!myCheckedIn ? `<div class="checkin-actions"><button class="primary-action" data-check-in="${game.id}" data-late-minutes="0">Я на месте</button><button class="ghost-action" data-check-in="${game.id}" data-late-minutes="10">Опоздаю на 10 мин.</button></div>` : `<b>✓ Ты отметился</b>`}</div>` : ''}
       ${game.my_rating ? `<div class="success-strip">Твоя оценка: ${game.my_rating.score} ★</div>` : ''}
       ${afterGameActionsAvailable ? `<div class="after-game-panel"><div class="after-game-title">После партии</div>${!game.my_rating && opponent ? ratingForm(game.id) : ''}${!game.my_place_rating ? placeRatingForm(game.id) : `<div class="success-strip">Оценка места: ${game.my_place_rating.score} ★</div>`}<div class="diary-actions"><button class="ghost-action" data-diary-game="${game.id}">${game.my_diary ? 'Изменить дневник' : 'Добавить в дневник'}</button></div><label class="photo-upload-chip">📷 Фото с партии<input type="file" accept="image/*" data-game-photo="${game.id}" /></label><div class="game-actions wrap">${!game.no_show_target_id ? `<button class="ghost-action danger-text" data-no-show="${game.id}">Не пришёл</button>` : ''}${opponent ? `<button class="ghost-action danger-text" data-report-user="${opponent.telegram_id}" data-report-game="${game.id}">Жалоба</button>` : ''}</div></div>` : ''}
       ${game.rating_available_at && !afterGameActionsAvailable ? `<div class="note-strip">Отзыв, фото, жалоба и no-show откроются через час после встречи.</div>` : ''}
       ${game.no_show_target_id ? `<div class="note-strip danger-note">Отмечен no-show по этой партии.</div>` : ''}
       ${renderGamePhotos(game)}
       <div class="game-actions wrap">
+        ${isCreator && game.status === 'pending' ? `<button class="primary-action" data-manage-responses="${game.id}">Отклики (${Number(game.pending_responses_count || 0)})</button>` : ''}
         ${canChat ? `<button class="primary-action" data-open-chat="${game.id}">Чат</button>` : ''}
         ${game.status === 'confirmed' ? `<button class="ghost-action" data-add-calendar="${game.id}">В календарь</button>` : ''}
         ${isCreator && ['open','pending'].includes(game.status) && !game.accepted_response_id ? `<button class="ghost-action" data-edit-game="${game.id}">Редактировать</button>` : ''}
@@ -970,6 +1023,10 @@ function profileScreen() {
       <section class="flow-card"><div class="step-label">Уведомления</div>
         <label class="toggle-row"><span>Напоминания о партиях<small>За 3 часа и за 30 минут до встречи</small></span><input type="checkbox" name="notify_game_reminders" ${me.notify_game_reminders !== false ? 'checked' : ''} /></label>
         <label class="toggle-row"><span>Новые заявки<small>Когда другой игрок публикует партию в твоём городе</small></span><input type="checkbox" name="notify_new_requests" ${me.notify_new_requests === true ? 'checked' : ''} /></label>
+        <div class="two-cols">
+          <label>Формат уведомлений<select name="subscription_format">${[['all','Все форматы'],['блиц','Блиц'],['рапид','Рапид'],['классика','Классика']].map(([value,label]) => `<option value="${value}" ${(me.subscription_format || 'all') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+          <label>Уровень соперника<select name="subscription_level">${['all','Новичок','Средний','Сильный любитель','Тренер / профи'].map(value => `<option value="${value}" ${(me.subscription_level || 'all') === value.toLowerCase() ? 'selected' : ''}>${value === 'all' ? 'Любой уровень' : value}</option>`).join('')}</select></label>
+        </div>
         <label class="toggle-row"><span>Продление серии<small>В 21:00 по времени выбранного города, если задача дня ещё не решена</small></span><input type="checkbox" name="notify_puzzle_streak" ${me.notify_puzzle_streak !== false ? 'checked' : ''} /></label>
         <button class="big-primary" type="submit">Сохранить профиль</button>
       </section>
@@ -1053,6 +1110,10 @@ function bindEvents() {
   document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => navigate(el.dataset.nav)));
   document.querySelectorAll('[data-respond]').forEach(el => el.addEventListener('click', () => { state.responseGameId = Number(el.dataset.respond); render(); }));
   document.querySelectorAll('[data-close-response]').forEach(el => el.addEventListener('click', () => { state.responseGameId = null; render(); }));
+  document.querySelectorAll('[data-manage-responses]').forEach(el => el.addEventListener('click', () => openResponsesManager(el.dataset.manageResponses)));
+  document.querySelectorAll('[data-close-responses]').forEach(el => el.addEventListener('click', () => { state.responsesPanelGameId = null; state.gameResponses = []; render(); }));
+  document.querySelectorAll('[data-accept-response]').forEach(el => el.addEventListener('click', () => processResponse(el.dataset.acceptResponse, 'accept')));
+  document.querySelectorAll('[data-decline-response]').forEach(el => el.addEventListener('click', () => processResponse(el.dataset.declineResponse, 'decline')));
   document.querySelectorAll('[data-modal-panel]').forEach(el => el.addEventListener('click', event => event.stopPropagation()));
   document.querySelectorAll('[data-response-template]').forEach(el => el.addEventListener('click', () => {
     const input = document.querySelector('#response-form textarea[name="proposed_comment"]');
@@ -1066,7 +1127,7 @@ function bindEvents() {
   document.querySelectorAll('[data-cancel-game]').forEach(el => el.addEventListener('click', () => cancelGame(el.dataset.cancelGame)));
   document.querySelectorAll('[data-no-show]').forEach(el => el.addEventListener('click', () => reportNoShow(el.dataset.noShow)));
   document.querySelectorAll('[data-rematch]').forEach(el => el.addEventListener('click', () => createRematch(el.dataset.rematch)));
-  document.querySelectorAll('[data-check-in]').forEach(el => el.addEventListener('click', () => checkInGame(el.dataset.checkIn)));
+  document.querySelectorAll('[data-check-in]').forEach(el => el.addEventListener('click', () => checkInGame(el.dataset.checkIn, el.dataset.lateMinutes)));
   document.querySelectorAll('[data-favorite-user]').forEach(el => el.addEventListener('click', () => toggleFavorite(el.dataset.favoriteUser)));
   document.querySelectorAll('[data-block-user]').forEach(el => el.addEventListener('click', () => blockUser(el.dataset.blockUser)));
   document.querySelectorAll('[data-report-user]').forEach(el => el.addEventListener('click', () => reportUser(el.dataset.reportUser, el.dataset.reportGame || null)));
@@ -1077,6 +1138,7 @@ function bindEvents() {
   document.querySelectorAll('[data-share-invite]').forEach(el => el.addEventListener('click', shareInvite));
   document.querySelectorAll('[data-set-language]').forEach(el => el.addEventListener('click', () => setLanguage(el.dataset.setLanguage)));
   document.querySelectorAll('[data-enable-city-alerts]').forEach(el => el.addEventListener('click', enableCityAlerts));
+  document.querySelectorAll('[data-use-location]').forEach(el => el.addEventListener('click', useMyLocation));
   document.querySelectorAll('[data-toggle-history]').forEach(el => el.addEventListener('click', () => { state.showGameHistory = el.dataset.toggleHistory === '1'; render(); }));
   document.querySelectorAll('[data-edit-game]').forEach(el => el.addEventListener('click', () => { state.editingGameId = Number(el.dataset.editGame); state.selectedPlace = null; navigate('create'); }));
   document.querySelectorAll('[data-cancel-edit]').forEach(el => el.addEventListener('click', () => { state.editingGameId = null; state.selectedPlace = null; navigate('my'); }));
@@ -1131,6 +1193,28 @@ async function submitResponse(event) {
     showToast('Отклик отправлен');
     await loadGames(); await loadMy(); navigate('my');
   } catch (e) { showToast(e.message); }
+}
+
+async function openResponsesManager(gameId) {
+  try {
+    const data = await api(`/api/games/${gameId}/responses`);
+    state.responsesPanelGameId = Number(gameId);
+    state.gameResponses = data.responses || [];
+    render();
+  } catch (err) { showToast(err.message); }
+}
+
+async function processResponse(responseId, action) {
+  try {
+    await api(`/api/responses/${responseId}/${action}`, { method: 'POST' });
+    tg?.HapticFeedback?.notificationOccurred?.(action === 'accept' ? 'success' : 'warning');
+    trackEvent(`response_${action}ed`, { response_id: Number(responseId) });
+    state.responsesPanelGameId = null;
+    state.gameResponses = [];
+    await loadMy();
+    render();
+    showToast(action === 'accept' ? 'Соперник выбран' : 'Отклик отклонён');
+  } catch (err) { showToast(err.message); }
 }
 async function cancelGame(id) { const reason = prompt('Причина отмены:\n1. Не могу прийти\n2. Изменились планы\n3. Нашёл соперника\n4. Ошибка в заявке\n5. Другое', 'Изменились планы') || ''; try { await api(`/api/games/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }); showToast('Отменено'); await loadMy(); render(); } catch (e) { showToast(e.message); } }
 
@@ -1254,6 +1338,8 @@ async function submitProfile(e) {
     notify_puzzle_streak: fd.get('notify_puzzle_streak') === 'on',
     theme_mode: fd.get('theme_mode') || 'light',
     ui_language: currentLanguage(),
+    subscription_format: fd.get('subscription_format') || 'all',
+    subscription_level: fd.get('subscription_level') || 'all',
   };
   try {
     const data = await api('/api/me', { method: 'PATCH', body: JSON.stringify(payload) });
@@ -1273,9 +1359,9 @@ async function submitProfile(e) {
     }
   }
 }
-async function checkInGame(id) {
+async function checkInGame(id, lateMinutes = 0) {
   try {
-    await api(`/api/games/${id}/check-in`, { method: 'POST' });
+    await api(`/api/games/${id}/check-in`, { method: 'POST', body: JSON.stringify({ late_minutes: Number(lateMinutes || 0) }) });
     tg?.HapticFeedback?.notificationOccurred?.('success');
     trackEvent('game_check_in', { game_id: Number(id) });
     showToast('Отметка «Я на месте» сохранена');
@@ -1339,6 +1425,25 @@ function trackEvent(eventName, eventData = {}) {
     method: 'POST',
     body: JSON.stringify({ event_name: eventName, event_data: eventData }),
   }).catch(() => {});
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) {
+    showToast('Геолокация недоступна');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      state.userLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      trackEvent('location_enabled', { city: selectedCity() });
+      render();
+    },
+    () => showToast('Не удалось получить геолокацию'),
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+  );
 }
 
 function handlePhoto(e) {
@@ -1538,4 +1643,7 @@ function addMarker(lat, lng) {
   state.marker = L.marker([latitude, longitude]).addTo(state.map);
 }
 
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+}
 bootstrap();

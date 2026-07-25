@@ -98,6 +98,18 @@ a { color: inherit; }
 .response-templates { display: flex; gap: 7px; overflow-x: auto; margin-top: 10px; }
 .response-templates button { white-space: nowrap; padding: 9px 11px; border-radius: 999px; background: var(--soft); font-size: 12px; font-weight: 800; }
 .checkin-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px; border-radius: 18px; background: var(--green-soft); color: var(--green); font-size: 12px; font-weight: 800; }
+.checkin-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.candidate-list { display: grid; gap: 10px; margin-top: 14px; }
+.candidate-card { padding: 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--soft); }
+.candidate-proposal { margin-top: 12px; padding: 11px; border-radius: 15px; background: var(--card); }
+.candidate-proposal p { margin: 5px 0 0; color: var(--muted); }
+.location-button { width: 100%; margin-bottom: 10px; padding: 11px 14px; border-radius: 16px; background: var(--soft); color: var(--ink); font-weight: 850; }
+.location-button.active { background: var(--green-soft); color: var(--green); }
+.places-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 70%); gap: 10px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+.place-card { display: grid; gap: 6px; padding: 15px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); scroll-snap-align: start; }
+.place-card > span { color: var(--green); font-size: 24px; }
+.place-card small, .place-card div { color: var(--muted); font-size: 12px; }
+.place-card a { color: var(--green); font-weight: 850; text-decoration: none; }
 @media (max-width: 420px) { .advanced-filters { grid-template-columns: 1fr; } .city-stat-row { gap: 5px; } }
 .avatar-btn { padding: 0; background: transparent; }
 .top-avatar, .avatar, .profile-avatar {

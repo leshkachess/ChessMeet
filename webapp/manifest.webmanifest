@@ -1,0 +1,9 @@
+{
+  "name": "ChessMeet",
+  "short_name": "ChessMeet",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3efe7",
+  "theme_color": "#2f7d46",
+  "icons": []
+}
