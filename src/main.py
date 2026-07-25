@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File
+from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -91,6 +91,7 @@ db = Database(DATABASE_PATH)
 bot: Optional[Bot] = None
 polling_task: Optional[asyncio.Task] = None
 notification_task: Optional[asyncio.Task] = None
+admin_bot_task: Optional[asyncio.Task] = None
 
 
 class GameCreate(BaseModel):
@@ -255,6 +256,11 @@ class AdminBadgeIssue(BaseModel):
     badge_id: int
 
 
+class AdminReportResolve(BaseModel):
+    status: str = Field(pattern="^(resolved|dismissed)$")
+    note: str = Field(default="", max_length=500)
+
+
 async def notification_loop() -> None:
     """Background MVP scheduler: game reminders + daily puzzle streak reminders."""
     while True:
@@ -297,7 +303,7 @@ async def notification_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global bot, polling_task, notification_task
+    global bot, polling_task, notification_task, admin_bot_task
 
     await db.init()
 
@@ -312,6 +318,9 @@ async def lifespan(app: FastAPI):
         if BOT_MODE == "polling":
             dp = build_dispatcher(db=db, webapp_url=WEBAPP_URL)
             polling_task = asyncio.create_task(dp.start_polling(bot))
+    if os.getenv("ADMIN_BOT_TOKEN"):
+        from .admin_bot import run_admin_bot
+        admin_bot_task = asyncio.create_task(run_admin_bot())
 
     yield
 
@@ -327,11 +336,17 @@ async def lifespan(app: FastAPI):
             await polling_task
         except asyncio.CancelledError:
             pass
+    if admin_bot_task:
+        admin_bot_task.cancel()
+        try:
+            await admin_bot_task
+        except asyncio.CancelledError:
+            pass
     if bot:
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.1.1", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.2.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -392,6 +407,30 @@ def require_admin(x_admin_token: str = Header(default="")) -> None:
         raise HTTPException(status_code=403, detail="Admin token required")
 
 
+async def record_admin_action(
+    actor: str,
+    action: str,
+    target_type: str = "",
+    target_id: Any = "",
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    try:
+        actor_id = int(actor) if actor and str(actor).isdigit() else None
+        async with aiosqlite.connect(DATABASE_PATH) as conn:
+            await conn.execute(
+                """
+                INSERT INTO admin_audit_log
+                    (actor_telegram_id, action, target_type, target_id, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (actor_id, action[:80], target_type[:40], str(target_id)[:80],
+                 json.dumps(details or {}, ensure_ascii=False)[:2000], now_iso()),
+            )
+            await conn.commit()
+    except Exception:
+        pass
+
+
 @app.get("/")
 async def index():
     return FileResponse(WEBAPP_DIR / "index.html")
@@ -415,7 +454,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.1.1",
+        "version": "1.2.0",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1003,6 +1042,7 @@ async def _admin_table_rows(table: str, columns: str = "*", order_by: str = "id 
     allowed_tables = {
         "users", "game_requests", "responses", "ratings", "user_reports", "game_photos",
         "chat_messages", "badges", "user_badges", "user_blocks", "daily_puzzle_attempts",
+        "admin_audit_log",
     }
     if table not in allowed_tables:
         raise HTTPException(status_code=400, detail="Unsupported table")
@@ -1032,7 +1072,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.1.1",
+        "version": "1.2.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1052,10 +1092,46 @@ async def api_admin_snapshot(_: None = Depends(require_admin)):
 
 
 @app.get("/api/admin/users")
-async def api_admin_users(limit: int = 100, _: None = Depends(require_admin)):
+async def api_admin_users(
+    limit: int = 100,
+    q: str = Query(default="", max_length=100),
+    _: None = Depends(require_admin),
+):
     limit = max(1, min(limit, 500))
     await db.normalize_all_puzzle_streaks()
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        async with aiosqlite.connect(DATABASE_PATH) as conn:
+            conn.row_factory = aiosqlite.Row
+            rows = await conn.execute_fetchall(
+                """
+                SELECT * FROM users
+                WHERE CAST(telegram_id AS TEXT) LIKE ? OR username LIKE ?
+                   OR display_name LIKE ? OR first_name LIKE ?
+                ORDER BY updated_at DESC LIMIT ?
+                """,
+                (pattern, pattern, pattern, pattern, limit),
+            )
+        return {"users": [dict(row) for row in rows]}
     return {"users": await _admin_table_rows("users", order_by="created_at DESC", limit=limit)}
+
+
+@app.get("/api/admin/users/{telegram_id}")
+async def api_admin_user_detail(telegram_id: int, _: None = Depends(require_admin)):
+    async with aiosqlite.connect(DATABASE_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        rows = await conn.execute_fetchall("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+        if not rows:
+            raise HTTPException(status_code=404, detail="User not found")
+        blocked = await conn.execute_fetchall(
+            "SELECT 1 FROM user_blocks WHERE blocker_telegram_id = 0 AND blocked_telegram_id = ?",
+            (telegram_id,),
+        )
+        reports = await conn.execute_fetchall(
+            "SELECT * FROM user_reports WHERE reported_telegram_id = ? ORDER BY created_at DESC LIMIT 20",
+            (telegram_id,),
+        )
+    return {"user": dict(rows[0]), "admin_blocked": bool(blocked), "reports": [dict(row) for row in reports]}
 
 
 @app.get("/api/admin/games")
@@ -1070,13 +1146,42 @@ async def api_admin_reports(limit: int = 100, _: None = Depends(require_admin)):
     return {"reports": await _admin_table_rows("user_reports", order_by="created_at DESC", limit=limit)}
 
 
+@app.post("/api/admin/reports/{report_id}/resolve")
+async def api_admin_resolve_report(
+    report_id: int,
+    payload: AdminReportResolve,
+    x_admin_actor: str = Header(default=""),
+    _: None = Depends(require_admin),
+):
+    async with aiosqlite.connect(DATABASE_PATH) as conn:
+        cursor = await conn.execute(
+            "UPDATE user_reports SET status = ?, resolved_by = ?, resolved_at = ? WHERE id = ?",
+            (payload.status, int(x_admin_actor) if x_admin_actor.isdigit() else None, now_iso(), report_id),
+        )
+        await conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Report not found")
+    await record_admin_action(x_admin_actor, f"report_{payload.status}", "report", report_id, {"note": payload.note})
+    return {"ok": True, "report_id": report_id, "status": payload.status}
+
+
+@app.get("/api/admin/audit")
+async def api_admin_audit(limit: int = 100, _: None = Depends(require_admin)):
+    limit = max(1, min(limit, 500))
+    return {"actions": await _admin_table_rows("admin_audit_log", order_by="created_at DESC", limit=limit)}
+
+
 @app.get("/api/admin/puzzles")
 async def api_admin_puzzles(_: None = Depends(require_admin)):
     return {"count": len(db.daily_puzzles), "source": db.puzzle_source, "puzzles": db.daily_puzzles}
 
 
 @app.post("/api/admin/broadcast")
-async def api_admin_broadcast(payload: AdminBroadcastCreate, _: None = Depends(require_admin)):
+async def api_admin_broadcast(
+    payload: AdminBroadcastCreate,
+    x_admin_actor: str = Header(default=""),
+    _: None = Depends(require_admin),
+):
     if not bot:
         raise HTTPException(status_code=400, detail="Bot is not configured/running")
     if payload.telegram_id:
@@ -1093,6 +1198,13 @@ async def api_admin_broadcast(payload: AdminBroadcastCreate, _: None = Depends(r
             sent += 1
         except Exception:
             failed += 1
+    await record_admin_action(
+        x_admin_actor,
+        "broadcast",
+        "user" if payload.telegram_id else "all_users",
+        payload.telegram_id or "*",
+        {"sent": sent, "failed": failed},
+    )
     return {"sent": sent, "failed": failed, "total": len(recipients)}
 
 
@@ -1109,7 +1221,11 @@ async def api_admin_issue_badge(payload: AdminBadgeIssue, _: None = Depends(requ
 
 
 @app.post("/api/admin/users/{telegram_id}/block")
-async def api_admin_block_user(telegram_id: int, _: None = Depends(require_admin)):
+async def api_admin_block_user(
+    telegram_id: int,
+    x_admin_actor: str = Header(default=""),
+    _: None = Depends(require_admin),
+):
     ts = now_iso()
     async with aiosqlite.connect(DATABASE_PATH) as conn:
         await conn.execute(
@@ -1117,25 +1233,36 @@ async def api_admin_block_user(telegram_id: int, _: None = Depends(require_admin
             (telegram_id, ts),
         )
         await conn.commit()
+    await record_admin_action(x_admin_actor, "user_block", "user", telegram_id)
     return {"blocked": True, "telegram_id": telegram_id}
 
 
 @app.post("/api/admin/users/{telegram_id}/unblock")
-async def api_admin_unblock_user(telegram_id: int, _: None = Depends(require_admin)):
+async def api_admin_unblock_user(
+    telegram_id: int,
+    x_admin_actor: str = Header(default=""),
+    _: None = Depends(require_admin),
+):
     async with aiosqlite.connect(DATABASE_PATH) as conn:
         await conn.execute("DELETE FROM user_blocks WHERE blocker_telegram_id = 0 AND blocked_telegram_id = ?", (telegram_id,))
         await conn.commit()
+    await record_admin_action(x_admin_actor, "user_unblock", "user", telegram_id)
     return {"blocked": False, "telegram_id": telegram_id}
 
 
 @app.post("/api/admin/games/{game_id}/cancel")
-async def api_admin_cancel_game(game_id: int, _: None = Depends(require_admin)):
+async def api_admin_cancel_game(
+    game_id: int,
+    x_admin_actor: str = Header(default=""),
+    _: None = Depends(require_admin),
+):
     async with aiosqlite.connect(DATABASE_PATH) as conn:
         await conn.execute(
             "UPDATE game_requests SET status = 'cancelled', cancel_reason = 'Admin moderation', updated_at = ? WHERE id = ?",
             (now_iso(), game_id),
         )
         await conn.commit()
+    await record_admin_action(x_admin_actor, "game_cancel", "game", game_id)
     return {"cancelled": True, "game_id": game_id}
 
 

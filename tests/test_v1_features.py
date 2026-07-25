@@ -122,3 +122,21 @@ def test_database_creates_pre_migration_backup(tmp_path):
         assert backups[0]["size_bytes"] > 0
 
     asyncio.run(scenario())
+
+
+def test_admin_audit_and_report_workflow_schema(tmp_path):
+    async def scenario():
+        db = Database(str(tmp_path / "admin.sqlite3"))
+        await db.init()
+        import aiosqlite
+        async with aiosqlite.connect(db.path) as conn:
+            tables = {row[0] for row in await conn.execute_fetchall(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )}
+            report_columns = {row[1] for row in await conn.execute_fetchall(
+                "PRAGMA table_info(user_reports)"
+            )}
+        assert "admin_audit_log" in tables
+        assert {"status", "resolved_by", "resolved_at"} <= report_columns
+
+    asyncio.run(scenario())

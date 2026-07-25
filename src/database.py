@@ -425,6 +425,19 @@ class Database:
                 )
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS admin_audit_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    actor_telegram_id INTEGER,
+                    action TEXT NOT NULL,
+                    target_type TEXT DEFAULT '',
+                    target_id TEXT DEFAULT '',
+                    details TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
 
             # Lightweight migrations from older MVP versions.
             await self._add_column_if_missing(db, "users", "display_name", "TEXT")
@@ -474,6 +487,9 @@ class Database:
             await self._add_column_if_missing(db, "responses", "proposed_date_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_time_label", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "responses", "proposed_comment", "TEXT DEFAULT ''")
+            await self._add_column_if_missing(db, "user_reports", "status", "TEXT NOT NULL DEFAULT 'open'")
+            await self._add_column_if_missing(db, "user_reports", "resolved_by", "INTEGER")
+            await self._add_column_if_missing(db, "user_reports", "resolved_at", "TEXT DEFAULT ''")
 
 
             # Performance indexes for faster Mini App lists and admin views.
@@ -490,6 +506,8 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_game_photos_game_created ON game_photos(game_id, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_game_diary_owner ON game_diary(owner_telegram_id, updated_at)",
                 "CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name, created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at)",
             ]:
                 await db.execute(sql)
 
