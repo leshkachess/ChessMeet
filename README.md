@@ -1,4 +1,4 @@
-# ChessMeet v1.2.1 — Railway Ready
+# ChessMeet v1.2.2 — Railway Ready
 
 Telegram Mini App для поиска офлайн-шахматных партий по городам Беларуси и России.
 

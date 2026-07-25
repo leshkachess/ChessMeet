@@ -4,6 +4,7 @@ import asyncio
 from src.cities import city_catalog, city_today_key
 from src.main import GameCreate, PreferencesUpdate, resolve_database_path
 from src.database import Database
+from src.auth import create_webapp_auth_token, validate_webapp_auth_token, TelegramAuthError
 
 
 def test_city_catalog_has_expected_groups():
@@ -140,3 +141,19 @@ def test_admin_audit_and_report_workflow_schema(tmp_path):
         assert {"status", "resolved_by", "resolved_at"} <= report_columns
 
     asyncio.run(scenario())
+
+
+def test_signed_webapp_fallback_auth():
+    secret = "123456:TEST_TOKEN"
+    token = create_webapp_auth_token(
+        {"id": 42, "first_name": "Player", "username": "player", "language_code": "ru"},
+        secret,
+    )
+    payload = validate_webapp_auth_token(token, secret)
+    assert payload["id"] == 42
+    try:
+        validate_webapp_auth_token(token + "x", secret)
+    except TelegramAuthError:
+        pass
+    else:
+        raise AssertionError("Tampered fallback token was accepted")

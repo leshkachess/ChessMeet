@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict
+from urllib.parse import urlencode
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -14,6 +15,7 @@ from aiogram.types import (
 )
 
 from .database import Database
+from .auth import create_webapp_auth_token
 
 
 def display_name(user: Dict) -> str:
@@ -22,18 +24,27 @@ def display_name(user: Dict) -> str:
     return user.get("display_name") or user.get("first_name") or "Игрок"
 
 
-def main_keyboard(webapp_url: str) -> InlineKeyboardMarkup:
+def authenticated_webapp_url(webapp_url: str, user: Dict, bot_token: str, **params: str) -> str:
+    query = {"auth": create_webapp_auth_token(user, bot_token), **params}
+    return f"{webapp_url}?{urlencode(query)}"
+
+
+def main_keyboard(webapp_url: str, user: Dict | None = None, bot_token: str = "") -> InlineKeyboardMarkup:
+    def url(**params: str) -> str:
+        if user and bot_token:
+            return authenticated_webapp_url(webapp_url, user, bot_token, **params)
+        return f"{webapp_url}?{urlencode(params)}" if params else webapp_url
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="♟ Открыть Chess IRL Minsk", web_app=WebAppInfo(url=webapp_url))],
-            [InlineKeyboardButton(text="🧩 Задачка дня", web_app=WebAppInfo(url=f"{webapp_url}?screen=puzzle"))],
+            [InlineKeyboardButton(text="♟ Открыть Chess IRL Minsk", web_app=WebAppInfo(url=url()))],
+            [InlineKeyboardButton(text="🧩 Задачка дня", web_app=WebAppInfo(url=url(screen="puzzle")))],
             [
-                InlineKeyboardButton(text="➕ Создать заявку", web_app=WebAppInfo(url=f"{webapp_url}?screen=create")),
-                InlineKeyboardButton(text="📋 Найти партии", web_app=WebAppInfo(url=f"{webapp_url}?screen=games")),
+                InlineKeyboardButton(text="➕ Создать заявку", web_app=WebAppInfo(url=url(screen="create"))),
+                InlineKeyboardButton(text="📋 Найти партии", web_app=WebAppInfo(url=url(screen="games"))),
             ],
             [
-                InlineKeyboardButton(text="🧾 Мои партии", web_app=WebAppInfo(url=f"{webapp_url}?screen=my")),
-                InlineKeyboardButton(text="👤 Профиль", web_app=WebAppInfo(url=f"{webapp_url}?screen=profile")),
+                InlineKeyboardButton(text="🧾 Мои партии", web_app=WebAppInfo(url=url(screen="my"))),
+                InlineKeyboardButton(text="👤 Профиль", web_app=WebAppInfo(url=url(screen="profile"))),
             ],
         ]
     )
@@ -222,22 +233,28 @@ async def notify_new_chat_message(bot: Bot, message: Dict, webapp_url: str) -> N
     )
 
 
-def build_dispatcher(db: Database, webapp_url: str) -> Dispatcher:
+def build_dispatcher(db: Database, webapp_url: str, bot_token: str = "") -> Dispatcher:
     router = Router()
 
     @router.message(CommandStart())
     async def start(message: Message) -> None:
         if message.from_user:
-            await db.upsert_user(message.from_user.model_dump(), default_city="Минск")
+            user_payload = message.from_user.model_dump()
+            await db.upsert_user(user_payload, default_city="Минск")
             try:
-                await set_webapp_menu_button(message.bot, webapp_url, chat_id=message.chat.id)
+                menu_url = authenticated_webapp_url(webapp_url, user_payload, bot_token) if bot_token else webapp_url
+                await set_webapp_menu_button(message.bot, menu_url, chat_id=message.chat.id)
             except Exception:
                 # Some users can restrict Web App buttons in privacy settings.
                 pass
 
         await message.answer(
             "Привет! Это <b>ChessMeet</b> — мини-приложение для поиска шахматной партии в реальной жизни.\n\n",
-            reply_markup=main_keyboard(webapp_url),
+            reply_markup=main_keyboard(
+                webapp_url,
+                message.from_user.model_dump() if message.from_user else None,
+                bot_token,
+            ),
         )
 
     @router.message(Command("help"))
@@ -263,14 +280,28 @@ def build_dispatcher(db: Database, webapp_url: str) -> Dispatcher:
             "Реши мат в 1 ход и сохрани ежедневную серию в профиле.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
-                    [InlineKeyboardButton(text="Открыть задачку", web_app=WebAppInfo(url=f"{webapp_url}?screen=puzzle"))],
+                    [InlineKeyboardButton(
+                        text="Открыть задачку",
+                        web_app=WebAppInfo(
+                            url=authenticated_webapp_url(
+                                webapp_url, message.from_user.model_dump(), bot_token, screen="puzzle"
+                            ) if message.from_user and bot_token else f"{webapp_url}?screen=puzzle"
+                        ),
+                    )],
                 ]
             ),
         )
 
     @router.message(Command("app"))
     async def app_cmd(message: Message) -> None:
-        await message.answer("Открыть приложение:", reply_markup=main_keyboard(webapp_url))
+        await message.answer(
+            "Открыть приложение:",
+            reply_markup=main_keyboard(
+                webapp_url,
+                message.from_user.model_dump() if message.from_user else None,
+                bot_token,
+            ),
+        )
 
     @router.callback_query(F.data.startswith("accept:"))
     async def accept_response(callback: CallbackQuery) -> None:

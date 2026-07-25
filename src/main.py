@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from .auth import TelegramAuthError, demo_user, validate_telegram_init_data
+from .auth import TelegramAuthError, demo_user, validate_telegram_init_data, validate_webapp_auth_token
 from .cities import canonical_city, city_catalog, city_local_hour, city_today_key, is_supported_city, public_city_config
 from .bot import (
     build_dispatcher,
@@ -316,7 +316,7 @@ async def lifespan(app: FastAPI):
             pass
         notification_task = asyncio.create_task(notification_loop())
         if BOT_MODE == "polling":
-            dp = build_dispatcher(db=db, webapp_url=WEBAPP_URL)
+            dp = build_dispatcher(db=db, webapp_url=WEBAPP_URL, bot_token=BOT_TOKEN)
             polling_task = asyncio.create_task(dp.start_polling(bot))
     if os.getenv("ADMIN_BOT_TOKEN"):
         from .admin_bot import run_admin_bot
@@ -346,7 +346,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.2.1", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.2.2", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -382,11 +382,19 @@ async def security_headers(request, call_next):
     return response
 
 
-async def current_user(x_telegram_init_data: str = Header(default="")) -> Dict[str, Any]:
+async def current_user(
+    x_telegram_init_data: str = Header(default=""),
+    x_chessmeet_auth: str = Header(default=""),
+) -> Dict[str, Any]:
     if x_telegram_init_data and BOT_IS_CONFIGURED:
         try:
             parsed = validate_telegram_init_data(x_telegram_init_data, BOT_TOKEN)
             user_payload = parsed["user"]
+        except TelegramAuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+    elif x_chessmeet_auth and BOT_IS_CONFIGURED:
+        try:
+            user_payload = validate_webapp_auth_token(x_chessmeet_auth, BOT_TOKEN)
         except TelegramAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from exc
     elif DEV_MODE:
@@ -454,7 +462,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.2.1",
+        "version": "1.2.2",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1072,7 +1080,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.2.1",
+        "version": "1.2.2",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

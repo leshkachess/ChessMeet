@@ -1,5 +1,11 @@
 const tg = window.Telegram?.WebApp;
 const initialParams = new URLSearchParams(location.search);
+const fallbackAuthToken = initialParams.get('auth') || '';
+if (fallbackAuthToken) {
+  const cleanUrl = new URL(location.href);
+  cleanUrl.searchParams.delete('auth');
+  history.replaceState({}, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+}
 if (tg) {
   tg.ready();
   tg.expand();
@@ -42,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -282,6 +288,7 @@ async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   const initData = tg?.initData || '';
   if (initData) headers['X-Telegram-Init-Data'] = initData;
+  else if (fallbackAuthToken) headers['X-ChessMeet-Auth'] = fallbackAuthToken;
   const res = await fetch(path, { ...options, headers });
   let data = {};
   try { data = await res.json(); } catch (_) {}
@@ -297,12 +304,12 @@ async function api(path, options = {}) {
 async function bootstrap() {
   try {
     applyTheme(localStorage.getItem(cacheKey('theme_mode')) || 'light');
-    if (!tg?.initData) {
+    if (!tg?.initData && !fallbackAuthToken) {
       for (let attempt = 0; attempt < 15 && !tg?.initData; attempt += 1) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
-    if (!tg?.initData) {
+    if (!tg?.initData && !fallbackAuthToken) {
       let config = {};
       try {
         const response = await fetch('/api/config');
@@ -456,7 +463,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.2.1</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.2.2</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
