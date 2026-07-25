@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import asyncio
 
 from src.cities import city_catalog, city_today_key
-from src.main import GameCreate, PreferencesUpdate
+from src.main import GameCreate, PreferencesUpdate, resolve_database_path
 from src.database import Database
 
 
@@ -87,5 +87,38 @@ def test_new_request_subscription_filters_format_and_level(tmp_path):
         )
         assert len(matching) == 1
         assert wrong_format == []
+
+    asyncio.run(scenario())
+
+
+def test_railway_database_requires_attached_volume(tmp_path):
+    try:
+        resolve_database_path({
+            "RAILWAY_SERVICE_ID": "service",
+            "DATABASE_PATH": str(tmp_path / "ephemeral.sqlite3"),
+        })
+    except RuntimeError as exc:
+        assert "Persistent Railway Volume" in str(exc)
+    else:
+        raise AssertionError("Ephemeral Railway database was accepted")
+
+    mount = tmp_path / "volume"
+    resolved = resolve_database_path({
+        "RAILWAY_SERVICE_ID": "service",
+        "RAILWAY_VOLUME_MOUNT_PATH": str(mount),
+    })
+    assert resolved == str((mount / "chess_irl.sqlite3").resolve())
+
+
+def test_database_creates_pre_migration_backup(tmp_path):
+    async def scenario():
+        path = tmp_path / "persistent.sqlite3"
+        db = Database(str(path))
+        await db.init()
+        await db.upsert_user({"id": 100, "first_name": "Persistent"})
+        await db.init()
+        backups = db.list_local_backups()
+        assert backups
+        assert backups[0]["size_bytes"] > 0
 
     asyncio.run(scenario())

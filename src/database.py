@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import re
+import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.request import urlopen
 from .cities import canonical_city, city_today_key
@@ -176,6 +177,7 @@ class Database:
     async def init(self) -> None:
         self._load_or_fetch_daily_puzzles()
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
+        self._backup_before_migration()
         async with aiosqlite.connect(self.path) as db:
             await db.execute("PRAGMA journal_mode=WAL")
             await db.execute(
@@ -502,6 +504,38 @@ class Database:
         await self.expire_old_games()
         await self.normalize_all_puzzle_streaks()
         await self.refresh_all_user_ratings()
+
+    def _backup_before_migration(self) -> None:
+        source_path = Path(self.path)
+        if not source_path.exists() or source_path.stat().st_size == 0:
+            return
+        backup_dir = source_path.parent / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        destination = backup_dir / f"{source_path.stem}-{timestamp}.sqlite3"
+        with sqlite3.connect(str(source_path)) as source, sqlite3.connect(str(destination)) as target:
+            source.backup(target)
+        backups = sorted(
+            backup_dir.glob(f"{source_path.stem}-*.sqlite3"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        for stale_backup in backups[10:]:
+            stale_backup.unlink(missing_ok=True)
+
+    def list_local_backups(self) -> List[Dict[str, Any]]:
+        source_path = Path(self.path)
+        backup_dir = source_path.parent / "backups"
+        if not backup_dir.exists():
+            return []
+        return [
+            {
+                "name": item.name,
+                "size_bytes": item.stat().st_size,
+                "modified_at": datetime.fromtimestamp(item.stat().st_mtime, timezone.utc).isoformat(),
+            }
+            for item in sorted(backup_dir.glob(f"{source_path.stem}-*.sqlite3"), reverse=True)[:10]
+        ]
 
     async def _add_column_if_missing(self, db: aiosqlite.Connection, table: str, column: str, definition: str) -> None:
         rows = await db.execute_fetchall(f"PRAGMA table_info({table})")

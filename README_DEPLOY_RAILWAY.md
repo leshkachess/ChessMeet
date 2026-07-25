@@ -46,6 +46,7 @@ DEV_MODE=false
 DATABASE_PATH=/data/chess_irl.sqlite3
 DEFAULT_CITY=Минск
 ADMIN_TOKEN=long_random_secret
+ALLOW_EPHEMERAL_DATABASE=false
 ```
 
 ## 4. SQLite Volume
@@ -65,6 +66,12 @@ ADMIN_TOKEN=long_random_secret
 ```
 
 Без volume база может потеряться при redeploy/restart.
+
+Начиная с v1.1.1 приложение проверяет системную переменную
+`RAILWAY_VOLUME_MOUNT_PATH` и отказывается запускаться без подключённого Volume.
+Если `DATABASE_PATH` не задан, путь автоматически определяется как
+`$RAILWAY_VOLUME_MOUNT_PATH/chess_irl.sqlite3`. Это предотвращает незаметный
+запуск с новой пустой базой во временной файловой системе.
 
 ## 5. Deploy
 

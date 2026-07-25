@@ -49,7 +49,40 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
-DATABASE_PATH = os.getenv("DATABASE_PATH", str(ROOT_DIR / "chess_irl.sqlite3"))
+def resolve_database_path(environment: Optional[Dict[str, str]] = None) -> str:
+    env = environment if environment is not None else os.environ
+    railway_runtime = bool(
+        env.get("RAILWAY_ENVIRONMENT_ID")
+        or env.get("RAILWAY_PROJECT_ID")
+        or env.get("RAILWAY_SERVICE_ID")
+    )
+    volume_mount = (env.get("RAILWAY_VOLUME_MOUNT_PATH") or "").strip()
+    configured = (env.get("DATABASE_PATH") or "").strip()
+    allow_ephemeral = (env.get("ALLOW_EPHEMERAL_DATABASE") or "").lower() == "true"
+
+    if volume_mount and not configured:
+        configured = str(Path(volume_mount) / "chess_irl.sqlite3")
+    if not configured:
+        configured = str(ROOT_DIR / "chess_irl.sqlite3")
+
+    database_path = Path(configured).expanduser().resolve()
+    if railway_runtime and not volume_mount and not allow_ephemeral:
+        raise RuntimeError(
+            "Persistent Railway Volume is not attached. Attach a Volume and mount it at /data; "
+            "ChessMeet refuses to create another disposable SQLite database."
+        )
+    if railway_runtime and volume_mount:
+        mount_path = Path(volume_mount).expanduser().resolve()
+        try:
+            database_path.relative_to(mount_path)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"DATABASE_PATH must be inside the Railway Volume mounted at {mount_path}."
+            ) from exc
+    return str(database_path)
+
+
+DATABASE_PATH = resolve_database_path()
 DEFAULT_CITY = canonical_city(os.getenv("DEFAULT_CITY", "Минск"))
 
 BOT_IS_CONFIGURED = bool(BOT_TOKEN and BOT_TOKEN != "123456789:PASTE_YOUR_BOT_TOKEN_HERE")
@@ -298,7 +331,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.1.1", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -375,14 +408,17 @@ async def service_worker():
 
 @app.get("/health")
 async def health():
+    volume_mount = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "")
     return {
         "ok": True,
         "bot_configured": BOT_IS_CONFIGURED,
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.1.0",
+        "version": "1.1.1",
         "railway_ready": True,
+        "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
+        "database_volume_attached": bool(volume_mount),
     }
 
 
@@ -996,9 +1032,13 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.1.0",
+        "version": "1.1.1",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
+        "database_exists": Path(DATABASE_PATH).exists(),
+        "database_size_bytes": Path(DATABASE_PATH).stat().st_size if Path(DATABASE_PATH).exists() else 0,
+        "volume_mount_path": os.getenv("RAILWAY_VOLUME_MOUNT_PATH", ""),
+        "database_backups": db.list_local_backups(),
         "puzzle_streaks_reset_now": reset_count,
         "puzzle_pack_size": len(db.daily_puzzles),
         "puzzle_source": db.puzzle_source,
