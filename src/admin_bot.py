@@ -236,12 +236,16 @@ async def user_detail(callback: CallbackQuery):
         f"Статус: {'🔴 заблокирован' if blocked else '🟢 активен'}"
     )
     action = ("Разблокировать", f"confirm:unblock:{user_id}") if blocked else ("Заблокировать", f"confirm:block:{user_id}")
-    await callback.message.edit_text(text, reply_markup=keyboard([[action], [("← Главное меню", "menu:home")]]))
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard([[action, ("⚠️ Предупредить", f"confirm:warn:{user_id}")], [("← Главное меню", "menu:home")]]),
+    )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("confirm:block:"))
 @router.callback_query(F.data.startswith("confirm:unblock:"))
+@router.callback_query(F.data.startswith("confirm:warn:"))
 async def confirm_user_action(callback: CallbackQuery):
     _, action, user_id = callback.data.split(":")
     await callback.message.edit_text(
@@ -255,9 +259,20 @@ async def confirm_user_action(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("do:block:"))
 @router.callback_query(F.data.startswith("do:unblock:"))
+@router.callback_query(F.data.startswith("do:warn:"))
 async def execute_user_action(callback: CallbackQuery):
     _, action, user_id = callback.data.split(":")
-    await api.post(f"/api/admin/users/{user_id}/{action}", callback.from_user.id)
+    if action == "warn":
+        await api.post(
+            "/api/admin/broadcast",
+            callback.from_user.id,
+            {
+                "telegram_id": int(user_id),
+                "text": "⚠️ Предупреждение модерации ChessMeet.\n\nПожалуйста, соблюдай правила сообщества. Повторные нарушения могут привести к блокировке.",
+            },
+        )
+    else:
+        await api.post(f"/api/admin/users/{user_id}/{action}", callback.from_user.id)
     await callback.answer("Готово", show_alert=True)
     callback.data = f"user:{user_id}"
     await user_detail(callback)
@@ -402,14 +417,37 @@ async def audit(callback: CallbackQuery):
 
 @router.callback_query(F.data == "menu:backup")
 async def backup(callback: CallbackQuery):
-    if callback.from_user.id not in OWNER_IDS:
-        await callback.answer("Только для владельца", show_alert=True)
+    await callback.message.edit_text(
+        "🗄 <b>Экспорт и резервные копии</b>",
+        reply_markup=keyboard([
+            [("👥 Пользователи CSV", "export:users"), ("🎮 Заявки CSV", "export:games")],
+            [("🗄 Полная база SQLite", "export:database")],
+            [("← Главное меню", "menu:home")],
+        ]),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("export:"))
+async def export_data(callback: CallbackQuery):
+    export_type = callback.data.split(":")[1]
+    if export_type == "database" and callback.from_user.id not in OWNER_IDS:
+        await callback.answer("Полная база доступна только владельцу", show_alert=True)
         return
-    await callback.answer("Готовлю backup…")
-    content = await api.download("/api/admin/db/backup", callback.from_user.id)
+    paths = {
+        "users": ("/api/admin/export/users.csv", "chessmeet-users.csv"),
+        "games": ("/api/admin/export/games.csv", "chessmeet-games.csv"),
+        "database": ("/api/admin/db/backup", "chessmeet-backup.sqlite3"),
+    }
+    if export_type not in paths:
+        await callback.answer("Неизвестный экспорт", show_alert=True)
+        return
+    await callback.answer("Готовлю файл…")
+    path, filename = paths[export_type]
+    content = await api.download(path, callback.from_user.id)
     await callback.message.answer_document(
-        BufferedInputFile(content, filename="chessmeet-backup.sqlite3"),
-        caption="🗄 Резервная копия ChessMeet",
+        BufferedInputFile(content, filename=filename),
+        caption=f"Экспорт ChessMeet · {export_type}",
     )
 
 
