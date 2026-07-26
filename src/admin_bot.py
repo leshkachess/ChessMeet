@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import os
 import urllib.error
@@ -204,12 +205,73 @@ async def stats(callback: CallbackQuery):
     await callback.answer()
 
 
+def compact_cell(value: Any, width: int) -> str:
+    text = str(value or "—").replace("\n", " ").strip()
+    return text if len(text) <= width else text[: max(1, width - 1)] + "…"
+
+
+async def render_users_table(callback: CallbackQuery, page: int = 0) -> None:
+    page_size = 8
+    page = max(0, page)
+    data = await api.get(
+        f"/api/admin/users?limit={page_size}&offset={page * page_size}",
+        callback.from_user.id,
+    )
+    users = data.get("users", [])
+    total = int(data.get("total", 0))
+    last_page = max(0, (total - 1) // page_size)
+    page = min(page, last_page)
+    lines = ["ID         ИМЯ          ГОРОД      ИГР РЕФ"]
+    for user in users:
+        games = int(user.get("games_created") or 0) + int(user.get("responses_count") or 0)
+        lines.append(
+            f"{compact_cell(user.get('telegram_id'), 10):<10} "
+            f"{compact_cell(user_name(user), 12):<12} "
+            f"{compact_cell(user.get('profile_city'), 10):<10} "
+            f"{games:>3} {int(user.get('invite_count') or 0):>3}"
+        )
+    text = (
+        f"👥 <b>Пользователи</b> · {total}\n"
+        f"Страница {page + 1}/{last_page + 1}\n\n"
+        f"<pre>{html.escape(chr(10).join(lines))}</pre>\n"
+        "Нажми ID ниже, чтобы открыть карточку."
+    )
+    rows = [
+        [(compact_cell(user_name(user), 18), f"user:{user['telegram_id']}")]
+        for user in users
+    ]
+    navigation = []
+    if page > 0:
+        navigation.append(("←", f"users:page:{page - 1}"))
+    if page < last_page:
+        navigation.append(("→", f"users:page:{page + 1}"))
+    if navigation:
+        rows.append(navigation)
+    rows.extend([
+        [("🔎 Поиск", "users:search")],
+        [("← Главное меню", "menu:home")],
+    ])
+    await callback.message.edit_text(text, reply_markup=keyboard(rows))
+    await callback.answer()
+
+
 @router.callback_query(F.data == "menu:users")
 async def users_menu(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await render_users_table(callback, 0)
+
+
+@router.callback_query(F.data.startswith("users:page:"))
+async def users_page(callback: CallbackQuery):
+    await render_users_table(callback, int(callback.data.rsplit(":", 1)[1]))
+
+
+@router.callback_query(F.data == "users:search")
+async def users_search(callback: CallbackQuery, state: FSMContext):
     await state.set_state(AdminForm.user_search)
     await callback.message.edit_text(
-        "👥 <b>Поиск пользователя</b>\n\nОтправь Telegram ID, username или имя.",
-        reply_markup=back_menu(),
+        "🔎 <b>Поиск пользователя</b>\n\nОтправь Telegram ID, username или имя.",
+        reply_markup=keyboard([[("← К таблице", "menu:users")]]),
     )
     await callback.answer()
 
@@ -247,7 +309,7 @@ async def user_detail(callback: CallbackQuery):
     action = ("Разблокировать", f"confirm:unblock:{user_id}") if blocked else ("Заблокировать", f"confirm:block:{user_id}")
     await callback.message.edit_text(
         text,
-        reply_markup=keyboard([[action, ("⚠️ Предупредить", f"confirm:warn:{user_id}")], [("← Главное меню", "menu:home")]]),
+        reply_markup=keyboard([[action, ("⚠️ Предупредить", f"confirm:warn:{user_id}")], [("← К таблице", "menu:users")]]),
     )
     await callback.answer()
 

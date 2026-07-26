@@ -373,7 +373,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.1", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.2", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -489,7 +489,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.1",
+        "version": "1.4.2",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1135,7 +1135,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.1",
+        "version": "1.4.2",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1157,26 +1157,46 @@ async def api_admin_snapshot(_: None = Depends(require_admin)):
 @app.get("/api/admin/users")
 async def api_admin_users(
     limit: int = 100,
+    offset: int = 0,
     q: str = Query(default="", max_length=100),
     _: None = Depends(require_admin),
 ):
     limit = max(1, min(limit, 500))
+    offset = max(0, offset)
     await db.normalize_all_puzzle_streaks()
-    if q.strip():
-        pattern = f"%{q.strip()}%"
-        async with aiosqlite.connect(DATABASE_PATH) as conn:
-            conn.row_factory = aiosqlite.Row
-            rows = await conn.execute_fetchall(
-                """
-                SELECT * FROM users
-                WHERE CAST(telegram_id AS TEXT) LIKE ? OR username LIKE ?
-                   OR display_name LIKE ? OR first_name LIKE ?
-                ORDER BY updated_at DESC LIMIT ?
-                """,
-                (pattern, pattern, pattern, pattern, limit),
-            )
-        return {"users": [dict(row) for row in rows]}
-    return {"users": await _admin_table_rows("users", order_by="created_at DESC", limit=limit)}
+    query = q.strip()
+    where = ""
+    params: list[Any] = []
+    if query:
+        pattern = f"%{query}%"
+        where = (
+            "WHERE CAST(u.telegram_id AS TEXT) LIKE ? OR u.username LIKE ? "
+            "OR u.display_name LIKE ? OR u.first_name LIKE ?"
+        )
+        params.extend([pattern, pattern, pattern, pattern])
+    async with aiosqlite.connect(DATABASE_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        total_rows = await conn.execute_fetchall(f"SELECT COUNT(*) FROM users u {where}", params)
+        rows = await conn.execute_fetchall(
+            f"""
+            SELECT u.telegram_id, u.username, u.display_name, u.first_name,
+                   u.profile_city, u.rating_avg, u.rating_count, u.invite_count,
+                   u.referral_points, u.created_at,
+                   (SELECT COUNT(*) FROM game_requests g
+                    WHERE g.creator_telegram_id = u.telegram_id) AS games_created,
+                   (SELECT COUNT(*) FROM responses r
+                    WHERE r.responder_telegram_id = u.telegram_id) AS responses_count
+            FROM users u {where}
+            ORDER BY u.created_at DESC LIMIT ? OFFSET ?
+            """,
+            [*params, limit, offset],
+        )
+    return {
+        "users": [dict(row) for row in rows],
+        "total": int(total_rows[0][0] if total_rows else 0),
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @app.get("/api/admin/users/{telegram_id}")

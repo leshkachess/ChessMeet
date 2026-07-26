@@ -6,6 +6,7 @@ from src.main import GameCreate, PreferencesUpdate, resolve_database_path
 from src.database import Database
 from src.auth import create_webapp_auth_token, validate_webapp_auth_token, TelegramAuthError
 from src.bot import parse_referral_arg
+from src.admin_bot import compact_cell
 
 
 def test_city_catalog_has_expected_groups():
@@ -222,3 +223,9 @@ def test_referral_start_argument_is_strict():
     assert parse_referral_arg(" ref_42 ") == 42
     assert parse_referral_arg("ref_0") is None
     assert parse_referral_arg("ref_bad") is None
+
+
+def test_admin_table_cells_are_compact_and_single_line():
+    assert compact_cell("Very long display name", 10) == "Very long…"
+    assert compact_cell("A\nB", 10) == "A B"
+    assert compact_cell(None, 10) == "—"
