@@ -266,6 +266,33 @@ async def notification_loop() -> None:
     while True:
         try:
             if bot:
+                for event in await db.due_referral_notifications():
+                    language = str(event.get("inviter_language") or "ru").lower()
+                    is_en = language.startswith("en")
+                    if not event.get("registration_notified_at"):
+                        text = (
+                            f"🎉 <b>{event['friend_name']}</b> joined ChessMeet through your link. "
+                            "You will earn 10 points after their first game action."
+                            if is_en else
+                            f"🎉 <b>{event['friend_name']}</b> зарегистрировался по твоей ссылке. "
+                            "10 очков начислятся после первого игрового действия."
+                        )
+                        try:
+                            await bot.send_message(int(event["inviter_telegram_id"]), text)
+                            await db.mark_referral_notification(int(event["referred_telegram_id"]), "registration")
+                        except Exception:
+                            pass
+                    if event.get("status") == "activated" and not event.get("activation_notified_at"):
+                        text = (
+                            f"🏆 <b>{event['friend_name']}</b> became active. +10 referral points!"
+                            if is_en else
+                            f"🏆 <b>{event['friend_name']}</b> стал активным игроком. +10 реферальных очков!"
+                        )
+                        try:
+                            await bot.send_message(int(event["inviter_telegram_id"]), text)
+                            await db.mark_referral_notification(int(event["referred_telegram_id"]), "activation")
+                        except Exception:
+                            pass
                 # Game reminders: 3 hours and 30 minutes before scheduled confirmed games.
                 for item in await db.get_due_game_reminders():
                     recipients = []
@@ -346,7 +373,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.1", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -462,7 +489,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.0",
+        "version": "1.4.1",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -676,7 +703,7 @@ async def api_create_game(payload: GameCreate, user: Dict[str, Any] = Depends(cu
         game = await db.create_game(int(user["telegram_id"]), data, default_city=DEFAULT_CITY)
     except ValueError as exc:
         mapping = {
-            "TOO_MANY_OPEN_GAMES": (400, "У тебя уже есть 3 открытые заявки. Закрой или отмени одну из них."),
+            "TOO_MANY_OPEN_GAMES": (400, "Достигнут лимит открытых заявок. Реферальные уровни повышают этот лимит."),
             "CREATE_RATE_LIMIT": (429, "Слишком много заявок подряд. Подожди несколько минут."),
         }
         status_code, detail = mapping.get(str(exc), (400, str(exc)))
@@ -1108,7 +1135,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.0",
+        "version": "1.4.1",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

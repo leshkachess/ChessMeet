@@ -491,6 +491,8 @@ class Database:
             await self._add_column_if_missing(db, "users", "subscription_format", "TEXT DEFAULT 'all'")
             await self._add_column_if_missing(db, "users", "subscription_level", "TEXT DEFAULT 'all'")
             await self._add_column_if_missing(db, "daily_puzzle_attempts", "selected_move", "TEXT DEFAULT ''")
+            await self._add_column_if_missing(db, "referral_events", "registration_notified_at", "TEXT")
+            await self._add_column_if_missing(db, "referral_events", "activation_notified_at", "TEXT")
 
             await self._add_column_if_missing(db, "game_requests", "place_id", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "game_requests", "latitude", "REAL")
@@ -844,7 +846,13 @@ class Database:
                 "SELECT COUNT(*) FROM game_requests WHERE creator_telegram_id = ? AND status IN ('open','pending')",
                 (creator_telegram_id,),
             )
-            if active_rows and int(active_rows[0][0]) >= 3:
+            reward_rows = await db.execute_fetchall(
+                "SELECT COALESCE(referral_points, 0) FROM users WHERE telegram_id = ?",
+                (creator_telegram_id,),
+            )
+            reward_points = int(reward_rows[0][0] or 0) if reward_rows else 0
+            active_limit = 5 if reward_points >= 100 else 4 if reward_points >= 50 else 3
+            if active_rows and int(active_rows[0][0]) >= active_limit:
                 raise ValueError("TOO_MANY_OPEN_GAMES")
             recent_rows = await db.execute_fetchall(
                 "SELECT COUNT(*) FROM game_requests WHERE creator_telegram_id = ? AND created_at >= ?",
@@ -1042,6 +1050,7 @@ class Database:
                 viewer = await self.get_user(viewer_telegram_id) or {}
                 viewer_level = str(viewer.get("level") or "").lower()
                 viewer_rating = float(viewer.get("rating_avg") or 0)
+                referral_bonus = 5 if int(viewer.get("referral_points") or 0) >= 50 else 0
                 for game in result:
                     score = 45
                     reasons = ["тот же город"]
@@ -1054,6 +1063,7 @@ class Database:
                         reasons.append("близкий рейтинг")
                     if bool(game.get("has_board")):
                         score += 5
+                    score += referral_bonus
                     game["match_score"] = min(score, 100)
                     game["match_reasons"] = reasons
                 result.sort(key=lambda item: (-int(item.get("match_score", 0)), item.get("scheduled_at") or item.get("created_at") or ""))
@@ -2316,6 +2326,33 @@ class Database:
             await db.commit()
             return True
 
+    async def due_referral_notifications(self, limit: int = 50) -> List[Dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                """
+                SELECT r.*, COALESCE(friend.display_name, friend.first_name, 'Игрок') AS friend_name,
+                       COALESCE(inviter.ui_language, inviter.language_code, 'ru') AS inviter_language
+                FROM referral_events r
+                JOIN users friend ON friend.telegram_id = r.referred_telegram_id
+                JOIN users inviter ON inviter.telegram_id = r.inviter_telegram_id
+                WHERE r.registration_notified_at IS NULL
+                   OR (r.status = 'activated' AND r.activation_notified_at IS NULL)
+                ORDER BY r.registered_at LIMIT ?
+                """,
+                (max(1, min(limit, 200)),),
+            )
+            return [dict(row) for row in rows]
+
+    async def mark_referral_notification(self, referred_telegram_id: int, kind: str) -> None:
+        column = "activation_notified_at" if kind == "activation" else "registration_notified_at"
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                f"UPDATE referral_events SET {column} = ? WHERE referred_telegram_id = ?",
+                (now_iso(), referred_telegram_id),
+            )
+            await db.commit()
+
     async def referral_stats(self, telegram_id: int) -> Dict[str, Any]:
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
@@ -2620,12 +2657,32 @@ class Database:
                 "SELECT COUNT(*), SUM(CASE WHEN status = 'activated' THEN 1 ELSE 0 END), "
                 "COALESCE(SUM(reward_points), 0) FROM referral_events"
             )
+            analytics_rows = await db.execute_fetchall(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM users WHERE created_at >= ?) AS new_users_7d,
+                    (SELECT COUNT(DISTINCT telegram_id) FROM analytics_events WHERE created_at >= ?) AS active_users_7d,
+                    (SELECT COUNT(*) FROM game_requests WHERE created_at >= ?) AS games_7d,
+                    (SELECT COUNT(*) FROM game_requests WHERE status = 'completed') AS completed_games
+                """,
+                (
+                    (now_dt() - timedelta(days=7)).isoformat(),
+                    (now_dt() - timedelta(days=7)).isoformat(),
+                    (now_dt() - timedelta(days=7)).isoformat(),
+                ),
+            )
         referral = {
             "registered": int(referral_rows[0][0] or 0),
             "activated": int(referral_rows[0][1] or 0),
             "points": int(referral_rows[0][2] or 0),
         }
-        return {"users": [dict(x) for x in users], "games": [dict(x) for x in games], "referral": referral}
+        analytics = dict(analytics_rows[0]) if analytics_rows else {}
+        return {
+            "users": [dict(x) for x in users],
+            "games": [dict(x) for x in games],
+            "referral": referral,
+            "analytics": analytics,
+        }
 
     def _public_user(self, user: Dict[str, Any]) -> Dict[str, Any]:
         user = self._normalize_user(dict(user))

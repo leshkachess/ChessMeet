@@ -186,13 +186,19 @@ async def stats(callback: CallbackQuery):
     open_reports = sum(item.get("status", "open") == "open" for item in reports.get("reports", []))
     open_games = sum(item.get("status") in {"open", "pending"} for item in games)
     referral = snapshot.get("referral", {})
+    analytics = snapshot.get("analytics", {})
     text = (
         "📊 <b>Статистика</b>\n\n"
         f"Пользователи: <b>{len(users)}</b>\n"
         f"Всего заявок: <b>{len(games)}</b>\n"
         f"Активные заявки: <b>{open_games}</b>\n"
         f"Открытые жалобы: <b>{open_reports}</b>\n"
-        f"Рефералы: <b>{referral.get('activated', 0)}</b> активных / {referral.get('registered', 0)} переходов"
+        f"Рефералы: <b>{referral.get('activated', 0)}</b> активных / {referral.get('registered', 0)} переходов\n\n"
+        f"<b>Последние 7 дней</b>\n"
+        f"Новые пользователи: <b>{analytics.get('new_users_7d', 0)}</b>\n"
+        f"Активные пользователи: <b>{analytics.get('active_users_7d', 0)}</b>\n"
+        f"Новые заявки: <b>{analytics.get('games_7d', 0)}</b>\n"
+        f"Завершённые встречи всего: <b>{analytics.get('completed_games', 0)}</b>"
     )
     await callback.message.edit_text(text, reply_markup=back_menu())
     await callback.answer()
