@@ -8,7 +8,7 @@ import shutil
 import hmac
 import json
 from urllib.parse import urlsplit
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import aiosqlite
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -373,7 +373,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.2", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.3", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -489,7 +489,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.2",
+        "version": "1.4.3",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1135,7 +1135,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.2",
+        "version": "1.4.3",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1159,21 +1159,42 @@ async def api_admin_users(
     limit: int = 100,
     offset: int = 0,
     q: str = Query(default="", max_length=100),
+    sort: str = Query(default="newest", max_length=20),
+    status: str = Query(default="all", max_length=20),
+    city: str = Query(default="", max_length=80),
     _: None = Depends(require_admin),
 ):
     limit = max(1, min(limit, 500))
     offset = max(0, offset)
     await db.normalize_all_puzzle_streaks()
     query = q.strip()
-    where = ""
+    conditions: list[str] = []
     params: list[Any] = []
     if query:
         pattern = f"%{query}%"
-        where = (
-            "WHERE CAST(u.telegram_id AS TEXT) LIKE ? OR u.username LIKE ? "
-            "OR u.display_name LIKE ? OR u.first_name LIKE ?"
+        conditions.append(
+            "(CAST(u.telegram_id AS TEXT) LIKE ? OR u.username LIKE ? "
+            "OR u.display_name LIKE ? OR u.first_name LIKE ?)"
         )
         params.extend([pattern, pattern, pattern, pattern])
+    if city.strip():
+        conditions.append("COALESCE(u.profile_city, u.city, '') = ?")
+        params.append(canonical_city(city.strip()))
+    if status == "active7d":
+        conditions.append("u.updated_at >= ?")
+        params.append((datetime.now(timezone.utc) - timedelta(days=7)).isoformat())
+    elif status == "blocked":
+        conditions.append(
+            "EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_telegram_id = 0 "
+            "AND ub.blocked_telegram_id = u.telegram_id)"
+        )
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    order_by = {
+        "activity": "u.updated_at DESC",
+        "games": "(games_created + responses_count) DESC, u.created_at DESC",
+        "rating": "u.rating_avg DESC, u.rating_count DESC",
+        "referrals": "u.invite_count DESC, u.referral_points DESC",
+    }.get(sort, "u.created_at DESC")
     async with aiosqlite.connect(DATABASE_PATH) as conn:
         conn.row_factory = aiosqlite.Row
         total_rows = await conn.execute_fetchall(f"SELECT COUNT(*) FROM users u {where}", params)
@@ -1181,21 +1202,31 @@ async def api_admin_users(
             f"""
             SELECT u.telegram_id, u.username, u.display_name, u.first_name,
                    u.profile_city, u.rating_avg, u.rating_count, u.invite_count,
-                   u.referral_points, u.created_at,
+                   u.referral_points, u.created_at, u.updated_at,
+                   EXISTS (SELECT 1 FROM user_blocks ub
+                           WHERE ub.blocker_telegram_id = 0
+                             AND ub.blocked_telegram_id = u.telegram_id) AS admin_blocked,
                    (SELECT COUNT(*) FROM game_requests g
                     WHERE g.creator_telegram_id = u.telegram_id) AS games_created,
                    (SELECT COUNT(*) FROM responses r
                     WHERE r.responder_telegram_id = u.telegram_id) AS responses_count
             FROM users u {where}
-            ORDER BY u.created_at DESC LIMIT ? OFFSET ?
+            ORDER BY {order_by} LIMIT ? OFFSET ?
             """,
             [*params, limit, offset],
+        )
+        city_rows = await conn.execute_fetchall(
+            """
+            SELECT COALESCE(profile_city, city, '—') AS city_name, COUNT(*) AS users_count
+            FROM users GROUP BY city_name ORDER BY users_count DESC, city_name LIMIT 20
+            """
         )
     return {
         "users": [dict(row) for row in rows],
         "total": int(total_rows[0][0] if total_rows else 0),
         "limit": limit,
         "offset": offset,
+        "cities": [dict(row) for row in city_rows],
     }
 
 

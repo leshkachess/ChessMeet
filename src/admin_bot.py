@@ -210,29 +210,39 @@ def compact_cell(value: Any, width: int) -> str:
     return text if len(text) <= width else text[: max(1, width - 1)] + "…"
 
 
-async def render_users_table(callback: CallbackQuery, page: int = 0) -> None:
+async def render_users_table(
+    callback: CallbackQuery,
+    page: int = 0,
+    sort: str = "newest",
+    status: str = "all",
+    city: str = "",
+) -> None:
     page_size = 8
     page = max(0, page)
     data = await api.get(
-        f"/api/admin/users?limit={page_size}&offset={page * page_size}",
+        f"/api/admin/users?limit={page_size}&offset={page * page_size}"
+        f"&sort={urllib.parse.quote(sort)}&status={urllib.parse.quote(status)}"
+        f"&city={urllib.parse.quote(city)}",
         callback.from_user.id,
     )
     users = data.get("users", [])
     total = int(data.get("total", 0))
     last_page = max(0, (total - 1) // page_size)
     page = min(page, last_page)
-    lines = ["ID         ИМЯ          ГОРОД      ИГР РЕФ"]
+    lines = ["  ID         ИМЯ          ГОРОД      ИГР РЕФ"]
     for user in users:
         games = int(user.get("games_created") or 0) + int(user.get("responses_count") or 0)
+        marker = "⛔" if user.get("admin_blocked") else "●" if str(user.get("updated_at") or "") >= (datetime.now(timezone.utc) - timedelta(days=7)).isoformat() else " "
         lines.append(
-            f"{compact_cell(user.get('telegram_id'), 10):<10} "
+            f"{marker} {compact_cell(user.get('telegram_id'), 10):<10} "
             f"{compact_cell(user_name(user), 12):<12} "
             f"{compact_cell(user.get('profile_city'), 10):<10} "
             f"{games:>3} {int(user.get('invite_count') or 0):>3}"
         )
     text = (
         f"👥 <b>Пользователи</b> · {total}\n"
-        f"Страница {page + 1}/{last_page + 1}\n\n"
+        f"Страница {page + 1}/{last_page + 1} · {sort}/{status}"
+        f"{f' · {city}' if city else ''}\n\n"
         f"<pre>{html.escape(chr(10).join(lines))}</pre>\n"
         "Нажми ID ниже, чтобы открыть карточку."
     )
@@ -242,12 +252,20 @@ async def render_users_table(callback: CallbackQuery, page: int = 0) -> None:
     ]
     navigation = []
     if page > 0:
-        navigation.append(("←", f"users:page:{page - 1}"))
+        navigation.append(("←", f"users:view:{page - 1}:{sort}:{status}:{city or '-'}"))
     if page < last_page:
-        navigation.append(("→", f"users:page:{page + 1}"))
+        navigation.append(("→", f"users:view:{page + 1}:{sort}:{status}:{city or '-'}"))
     if navigation:
         rows.append(navigation)
     rows.extend([
+        [("🆕 Новые", f"users:view:0:newest:{status}:{city or '-'}"),
+         ("⚡ Активные", f"users:view:0:activity:{status}:{city or '-'}")],
+        [("🎮 По играм", f"users:view:0:games:{status}:{city or '-'}"),
+         ("⭐ По рейтингу", f"users:view:0:rating:{status}:{city or '-'}")],
+        [("Все", f"users:view:0:{sort}:all:{city or '-'}"),
+         ("За 7 дней", f"users:view:0:{sort}:active7d:{city or '-'}"),
+         ("⛔ Блок", f"users:view:0:{sort}:blocked:{city or '-'}")],
+        [("🏙 Город", "users:cities"), ("🔄 Обновить", f"users:view:{page}:{sort}:{status}:{city or '-' }")],
         [("🔎 Поиск", "users:search")],
         [("← Главное меню", "menu:home")],
     ])
@@ -261,9 +279,20 @@ async def users_menu(callback: CallbackQuery, state: FSMContext):
     await render_users_table(callback, 0)
 
 
-@router.callback_query(F.data.startswith("users:page:"))
+@router.callback_query(F.data.startswith("users:view:"))
 async def users_page(callback: CallbackQuery):
-    await render_users_table(callback, int(callback.data.rsplit(":", 1)[1]))
+    _, _, page, sort, status, city = callback.data.split(":", 5)
+    await render_users_table(callback, int(page), sort, status, "" if city == "-" else city)
+
+
+@router.callback_query(F.data == "users:cities")
+async def users_cities(callback: CallbackQuery):
+    data = await api.get("/api/admin/users?limit=1", callback.from_user.id)
+    rows = [[(f"{item['city_name']} · {item['users_count']}", f"users:view:0:newest:all:{item['city_name']}")]
+            for item in data.get("cities", [])[:12]]
+    rows.append([("Все города", "users:view:0:newest:all:-")])
+    await callback.message.edit_text("🏙 <b>Выбери город</b>", reply_markup=keyboard(rows))
+    await callback.answer()
 
 
 @router.callback_query(F.data == "users:search")
