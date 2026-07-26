@@ -5,6 +5,7 @@ from src.cities import city_catalog, city_today_key
 from src.main import GameCreate, PreferencesUpdate, resolve_database_path
 from src.database import Database
 from src.auth import create_webapp_auth_token, validate_webapp_auth_token, TelegramAuthError
+from src.bot import parse_referral_arg
 
 
 def test_city_catalog_has_expected_groups():
@@ -190,3 +191,34 @@ def test_smart_matching_reliability_and_waitlist_promotion(tmp_path):
         assert reliability["score"] == 80
 
     asyncio.run(scenario())
+
+
+def test_referral_is_attributed_and_rewarded_only_after_activation(tmp_path):
+    async def scenario():
+        db = Database(str(tmp_path / "referrals.sqlite3"))
+        await db.init()
+        await db.upsert_user({"id": 101, "first_name": "Inviter"})
+        await db.upsert_user({"id": 202, "first_name": "Friend"})
+        assert await db.set_invited_by(202, 101) is True
+        assert await db.set_invited_by(202, 101) is False
+        before = await db.referral_stats(101)
+        assert before["registered"] == 1
+        assert before["activated"] == 0
+        assert before["points"] == 0
+        assert await db.activate_referral(202) is True
+        assert await db.activate_referral(202) is False
+        after = await db.referral_stats(101)
+        assert after["activated"] == 1
+        assert after["points"] == 10
+        inviter = await db.get_user(101)
+        assert inviter["invite_count"] == 1
+        assert inviter["referral_points"] == 10
+
+    asyncio.run(scenario())
+
+
+def test_referral_start_argument_is_strict():
+    assert parse_referral_arg("ref_123456") == 123456
+    assert parse_referral_arg(" ref_42 ") == 42
+    assert parse_referral_arg("ref_0") is None
+    assert parse_referral_arg("ref_bad") is None

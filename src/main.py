@@ -346,7 +346,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.3.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -462,7 +462,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.3.0",
+        "version": "1.4.0",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -513,6 +513,7 @@ async def api_bootstrap(user: Dict[str, Any] = Depends(current_user)):
     sequential browser requests with one backend request.
     """
     user["badges"] = await db.list_user_badges(int(user["telegram_id"]), public_only=False)
+    user["referral"] = await db.referral_stats(int(user["telegram_id"]))
     city = user.get("profile_city") or DEFAULT_CITY
     games, my, daily_puzzle = await asyncio.gather(
         db.list_games(city=city or DEFAULT_CITY, viewer_telegram_id=int(user["telegram_id"])),
@@ -563,7 +564,13 @@ async def api_bootstrap(user: Dict[str, Any] = Depends(current_user)):
 @app.get("/api/me")
 async def api_me(user: Dict[str, Any] = Depends(current_user)):
     user["badges"] = await db.list_user_badges(int(user["telegram_id"]), public_only=False)
+    user["referral"] = await db.referral_stats(int(user["telegram_id"]))
     return {"user": user, "default_city": DEFAULT_CITY}
+
+
+@app.get("/api/referrals")
+async def api_referrals(user: Dict[str, Any] = Depends(current_user)):
+    return {"referral": await db.referral_stats(int(user["telegram_id"]))}
 
 
 @app.patch("/api/me")
@@ -1101,7 +1108,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.3.0",
+        "version": "1.4.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

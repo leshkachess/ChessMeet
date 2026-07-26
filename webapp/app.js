@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -463,7 +463,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.3.0</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1005,6 +1005,8 @@ function renderPuzzleBoard(fen) {
 
 function profileScreen() {
   const me = state.me || {};
+  const referral = me.referral || {};
+  const nextReferralTier = referral.next_tier;
   return `
     <section class="profile-head">
       ${avatar({ ...me, photo_data_url: state.profilePhotoDraft || me.photo_data_url }, 'profile-avatar')}
@@ -1022,10 +1024,18 @@ function profileScreen() {
       </div>
     </section>
     <section class="flow-card invite-card">
-      <div class="step-label">Пригласить друга</div>
-      <p>Поделись ChessMeet с другом и помоги собрать больше игроков в городе ${h(selectedCity())}.</p>
+      <div class="step-label">Реферальная программа</div>
+      <div class="referral-tier"><span>Твой уровень</span><strong>${h(referral.tier || 'Новичок')}</strong></div>
+      <p>Приглашай друзей в ChessMeet. За каждого друга, который создаст заявку или откликнется на партию, ты получишь 10 очков.</p>
+      <div class="referral-metrics">
+        <div><strong>${Number(referral.registered || 0)}</strong><small>перешли</small></div>
+        <div><strong>${Number(referral.activated || 0)}</strong><small>активны</small></div>
+        <div><strong>${Number(referral.points || 0)}</strong><small>очков</small></div>
+      </div>
+      ${nextReferralTier ? `<div class="referral-progress"><span style="width:${Math.min(100, Math.round((Number(referral.activated || 0) / nextReferralTier.required) * 100))}%"></span></div><small>До уровня «${h(nextReferralTier.name)}»: ${nextReferralTier.remaining}</small>` : '<div class="success-strip">Достигнут максимальный уровень программы</div>'}
       <button class="big-primary" data-share-invite>Поделиться приглашением</button>
-      <small>Приглашено: ${Number(me.invite_count || 0)}</small>
+      <button class="ghost-wide" data-copy-invite>Скопировать ссылку</button>
+      ${(referral.recent || []).length ? `<div class="referral-list">${referral.recent.map(item => `<div><span>${h(item.display_name)}</span><small>${item.status === 'activated' ? '✓ активен · +10' : 'ожидает первого действия'}</small></div>`).join('')}</div>` : ''}
     </section>
     ${ownedBadgesSection(me)}
     ${communityRulesCard()}
@@ -1167,6 +1177,7 @@ function bindEvents() {
   document.querySelectorAll('[data-place-rate-game]').forEach(form => form.addEventListener('submit', submitPlaceRating));
   document.querySelectorAll('[data-diary-game]').forEach(el => el.addEventListener('click', () => updateDiary(el.dataset.diaryGame)));
   document.querySelectorAll('[data-share-invite]').forEach(el => el.addEventListener('click', shareInvite));
+  document.querySelectorAll('[data-copy-invite]').forEach(el => el.addEventListener('click', copyInviteLink));
   document.querySelectorAll('[data-set-language]').forEach(el => el.addEventListener('click', () => setLanguage(el.dataset.setLanguage)));
   document.querySelectorAll('[data-enable-city-alerts]').forEach(el => el.addEventListener('click', enableCityAlerts));
   document.querySelectorAll('[data-use-location]').forEach(el => el.addEventListener('click', useMyLocation));
@@ -1313,13 +1324,23 @@ async function updateDiary(gameId) {
   } catch (err) { showToast(err.message); }
 }
 
-function shareInvite() {
+function inviteLink() {
   const id = state.me?.telegram_id;
   const bot = state.config?.bot_username;
-  const link = bot ? `https://t.me/${bot}?start=ref_${id}` : `Открой ChessMeet Bot и введи /start ref_${id}`;
+  return bot ? `https://t.me/${bot}?start=ref_${id}` : `Открой ChessMeet Bot и введи /start ref_${id}`;
+}
+
+function shareInvite() {
+  const bot = state.config?.bot_username;
+  const link = inviteLink();
   const text = `Сыграем в шахматы офлайн? Я использую ChessMeet: ${link}`;
   if (navigator.share) navigator.share({ title: 'ChessMeet', text, url: bot ? link : undefined }).catch(() => {});
   else { navigator.clipboard?.writeText(text); showToast('Текст приглашения скопирован'); }
+}
+
+function copyInviteLink() {
+  navigator.clipboard?.writeText(inviteLink());
+  showToast('Реферальная ссылка скопирована');
 }
 
 async function submitCreate(e) {

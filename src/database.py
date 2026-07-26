@@ -451,6 +451,20 @@ class Database:
                 )
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS referral_events (
+                    referred_telegram_id INTEGER PRIMARY KEY,
+                    inviter_telegram_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'registered',
+                    registered_at TEXT NOT NULL,
+                    activated_at TEXT,
+                    reward_points INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (referred_telegram_id) REFERENCES users(telegram_id),
+                    FOREIGN KEY (inviter_telegram_id) REFERENCES users(telegram_id)
+                )
+                """
+            )
 
             # Lightweight migrations from older MVP versions.
             await self._add_column_if_missing(db, "users", "display_name", "TEXT")
@@ -473,6 +487,7 @@ class Database:
             await self._add_column_if_missing(db, "users", "puzzle_reminder_sent_date", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "users", "invited_by", "INTEGER")
             await self._add_column_if_missing(db, "users", "invite_count", "INTEGER DEFAULT 0")
+            await self._add_column_if_missing(db, "users", "referral_points", "INTEGER DEFAULT 0")
             await self._add_column_if_missing(db, "users", "subscription_format", "TEXT DEFAULT 'all'")
             await self._add_column_if_missing(db, "users", "subscription_level", "TEXT DEFAULT 'all'")
             await self._add_column_if_missing(db, "daily_puzzle_attempts", "selected_move", "TEXT DEFAULT ''")
@@ -521,9 +536,19 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_waitlist_game_position ON game_waitlist(game_id, position, created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_referrals_inviter_status ON referral_events(inviter_telegram_id, status)",
                 "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at)",
             ]:
                 await db.execute(sql)
+            await db.execute(
+                """
+                INSERT OR IGNORE INTO referral_events
+                    (referred_telegram_id, inviter_telegram_id, status, registered_at)
+                SELECT telegram_id, invited_by, 'registered', created_at
+                FROM users
+                WHERE invited_by IS NOT NULL AND invited_by != telegram_id
+                """
+            )
 
             await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
             meta_rows = await db.execute_fetchall("SELECT value FROM app_meta WHERE key = 'v081_new_requests_default_off'")
@@ -873,6 +898,7 @@ class Database:
                 ),
             )
             await db.commit()
+            await self.activate_referral(creator_telegram_id)
             return await self.get_game(game_id) or {}
 
 
@@ -1175,6 +1201,7 @@ class Database:
                 await db.commit()
                 response_rows = await db.execute_fetchall("SELECT * FROM responses WHERE id = ?", (cursor.lastrowid,))
                 response = dict(response_rows[0])
+            await self.activate_referral(responder_telegram_id)
             return response
 
     async def get_response_details(self, response_id: int) -> Optional[Dict[str, Any]]:
@@ -2235,22 +2262,106 @@ class Database:
 
 
 
-    async def set_invited_by(self, telegram_id: int, invited_by: Optional[int]) -> None:
+    async def set_invited_by(self, telegram_id: int, invited_by: Optional[int]) -> bool:
         if not invited_by or int(invited_by) == int(telegram_id):
-            return
+            return False
         async with aiosqlite.connect(self.path) as db:
             rows = await db.execute_fetchall("SELECT invited_by FROM users WHERE telegram_id = ?", (telegram_id,))
             if not rows:
-                return
+                return False
             current = rows[0][0] if rows else None
             if current:
-                return
+                return False
             inviter = await db.execute_fetchall("SELECT telegram_id FROM users WHERE telegram_id = ?", (invited_by,))
             if not inviter:
-                return
-            await db.execute("UPDATE users SET invited_by = ?, updated_at = ? WHERE telegram_id = ?", (invited_by, now_iso(), telegram_id))
-            await db.execute("UPDATE users SET invite_count = COALESCE(invite_count, 0) + 1, updated_at = ? WHERE telegram_id = ?", (now_iso(), invited_by))
+                return False
+            ts = now_iso()
+            await db.execute("UPDATE users SET invited_by = ?, updated_at = ? WHERE telegram_id = ?", (invited_by, ts, telegram_id))
+            await db.execute(
+                """
+                INSERT OR IGNORE INTO referral_events
+                    (referred_telegram_id, inviter_telegram_id, status, registered_at)
+                VALUES (?, ?, 'registered', ?)
+                """,
+                (telegram_id, invited_by, ts),
+            )
             await db.commit()
+            return True
+
+    async def activate_referral(self, telegram_id: int) -> bool:
+        """Reward an inviter once, after the referred user performs a real action."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                "SELECT * FROM referral_events WHERE referred_telegram_id = ? AND status = 'registered'",
+                (telegram_id,),
+            )
+            if not rows:
+                return False
+            event = dict(rows[0])
+            ts = now_iso()
+            cursor = await db.execute(
+                "UPDATE referral_events SET status = 'activated', activated_at = ?, reward_points = 10 "
+                "WHERE referred_telegram_id = ? AND status = 'registered'",
+                (ts, telegram_id),
+            )
+            if cursor.rowcount != 1:
+                await db.rollback()
+                return False
+            await db.execute(
+                "UPDATE users SET invite_count = COALESCE(invite_count, 0) + 1, "
+                "referral_points = COALESCE(referral_points, 0) + 10, updated_at = ? WHERE telegram_id = ?",
+                (ts, int(event["inviter_telegram_id"])),
+            )
+            await db.commit()
+            return True
+
+    async def referral_stats(self, telegram_id: int) -> Dict[str, Any]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                """
+                SELECT COUNT(*),
+                       SUM(CASE WHEN status = 'activated' THEN 1 ELSE 0 END),
+                       COALESCE(SUM(reward_points), 0)
+                FROM referral_events WHERE inviter_telegram_id = ?
+                """,
+                (telegram_id,),
+            )
+            registered = int(rows[0][0] or 0)
+            activated = int(rows[0][1] or 0)
+            points = int(rows[0][2] or 0)
+            recent = await db.execute_fetchall(
+                """
+                SELECT r.status, r.registered_at, r.activated_at,
+                       COALESCE(u.display_name, u.first_name, 'Игрок') AS display_name
+                FROM referral_events r
+                JOIN users u ON u.telegram_id = r.referred_telegram_id
+                WHERE r.inviter_telegram_id = ?
+                ORDER BY r.registered_at DESC LIMIT 10
+                """,
+                (telegram_id,),
+            )
+        tiers = [
+            {"name": "Амбассадор", "required": 10},
+            {"name": "Организатор", "required": 5},
+            {"name": "Напарник", "required": 1},
+        ]
+        current = next((tier["name"] for tier in tiers if activated >= tier["required"]), "Новичок")
+        next_tier = next(
+            ({"name": tier["name"], "required": tier["required"], "remaining": tier["required"] - activated}
+             for tier in reversed(tiers) if activated < tier["required"]),
+            None,
+        )
+        return {
+            "registered": registered,
+            "activated": activated,
+            "pending": max(0, registered - activated),
+            "points": points,
+            "tier": current,
+            "next_tier": next_tier,
+            "recent": [dict(row) for row in recent],
+        }
 
     async def submit_place_rating(self, game_id: int, rater_telegram_id: int, score: int, comment: str = "") -> Dict[str, Any]:
         if score < 1 or score > 5:
@@ -2505,7 +2616,16 @@ class Database:
             db.row_factory = aiosqlite.Row
             users = await db.execute_fetchall("SELECT telegram_id, username, display_name, profile_city, rating_avg, rating_count, created_at FROM users ORDER BY created_at DESC")
             games = await db.execute_fetchall("SELECT id, creator_telegram_id, city, place, date_label, time_label, status, created_at FROM game_requests ORDER BY created_at DESC")
-        return {"users": [dict(x) for x in users], "games": [dict(x) for x in games]}
+            referral_rows = await db.execute_fetchall(
+                "SELECT COUNT(*), SUM(CASE WHEN status = 'activated' THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(reward_points), 0) FROM referral_events"
+            )
+        referral = {
+            "registered": int(referral_rows[0][0] or 0),
+            "activated": int(referral_rows[0][1] or 0),
+            "points": int(referral_rows[0][2] or 0),
+        }
+        return {"users": [dict(x) for x in users], "games": [dict(x) for x in games], "referral": referral}
 
     def _public_user(self, user: Dict[str, Any]) -> Dict[str, Any]:
         user = self._normalize_user(dict(user))
@@ -2563,6 +2683,7 @@ class Database:
         user["puzzle_reminder_sent_date"] = user.get("puzzle_reminder_sent_date") or ""
         user["invited_by"] = user.get("invited_by")
         user["invite_count"] = int(user.get("invite_count") or 0)
+        user["referral_points"] = int(user.get("referral_points") or 0)
         user["public_handle"] = f"@{user['username']}" if user.get("show_telegram_username") and user.get("username") else None
         return user
 

@@ -163,6 +163,20 @@
     'Ты добавлен в лист ожидания': 'You joined the waitlist',
     'Ты вышел из листа ожидания': 'You left the waitlist',
     'Партия занята': 'Game is full',
+    'Реферальная программа': 'Referral program',
+    'Твой уровень': 'Your tier',
+    'Новичок': 'Beginner',
+    'Напарник': 'Partner',
+    'Организатор': 'Organizer',
+    'Амбассадор': 'Ambassador',
+    'перешли': 'joined',
+    'активны': 'active',
+    'очков': 'points',
+    'Скопировать ссылку': 'Copy link',
+    'Достигнут максимальный уровень программы': 'Maximum referral tier reached',
+    'Реферальная ссылка скопирована': 'Referral link copied',
+    'ожидает первого действия': 'waiting for first action',
+    'Приглашай друзей в ChessMeet. За каждого друга, который создаст заявку или откликнется на партию, ты получишь 10 очков.': 'Invite friends to ChessMeet. You earn 10 points when a friend creates a game or responds to one.',
   };
 
   function normalize(code) {
@@ -186,6 +200,8 @@
       [/^Совпадение (\d+)% · (.+)$/, '$1% match · $2'],
       [/^Партия занята · в очереди: (\d+)$/, 'Game is full · waitlist: $1'],
       [/^В очереди №(\d+)$/, 'Waitlist #$1'],
+      [/^До уровня «(.+)»: (\d+)$/, '$2 more to “$1”'],
+      [/^✓ активен · \+10$/, '✓ active · +10'],
     ];
     for (const [pattern, replacement] of patterns) {
       if (pattern.test(text)) return `${leading}${text.replace(pattern, replacement)}${trailing}`;

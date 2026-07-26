@@ -468,6 +468,16 @@ a { color: inherit; }
   line-height: 1.4;
 }
 
+.referral-tier { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+.referral-tier strong { color:var(--green); }
+.referral-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.referral-metrics div { padding:10px 6px; border-radius:12px; background:var(--soft, #f1f5f2); text-align:center; }
+.referral-metrics strong, .referral-metrics small { display:block; }
+.referral-progress { height:8px; margin:8px 0 5px; overflow:hidden; border-radius:99px; background:rgba(47,138,75,.15); }
+.referral-progress span { display:block; height:100%; border-radius:inherit; background:var(--green); }
+.referral-list { display:grid; gap:8px; margin-top:12px; }
+.referral-list > div { display:flex; justify-content:space-between; gap:12px; padding-top:8px; border-top:1px solid var(--line); }
+
 .diary-card .game-comment {
   white-space: pre-wrap;
 }

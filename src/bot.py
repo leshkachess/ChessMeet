@@ -4,7 +4,7 @@ from typing import Dict
 from urllib.parse import urlencode
 
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -16,6 +16,14 @@ from aiogram.types import (
 
 from .database import Database
 from .auth import create_webapp_auth_token
+
+
+def parse_referral_arg(value: str | None) -> int | None:
+    value = (value or "").strip()
+    if value.startswith("ref_") and value[4:].isdigit():
+        inviter_id = int(value[4:])
+        return inviter_id if inviter_id > 0 else None
+    return None
 
 
 def display_name(user: Dict) -> str:
@@ -237,10 +245,13 @@ def build_dispatcher(db: Database, webapp_url: str, bot_token: str = "") -> Disp
     router = Router()
 
     @router.message(CommandStart())
-    async def start(message: Message) -> None:
+    async def start(message: Message, command: CommandObject) -> None:
         if message.from_user:
             user_payload = message.from_user.model_dump()
             await db.upsert_user(user_payload, default_city="Минск")
+            inviter_id = parse_referral_arg(command.args)
+            if inviter_id:
+                await db.set_invited_by(message.from_user.id, inviter_id)
             try:
                 menu_url = authenticated_webapp_url(webapp_url, user_payload, bot_token) if bot_token else webapp_url
                 await set_webapp_menu_button(message.bot, menu_url, chat_id=message.chat.id)
