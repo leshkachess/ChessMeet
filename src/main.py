@@ -373,7 +373,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.3", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.4", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -489,7 +489,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.3",
+        "version": "1.4.4",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1135,7 +1135,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.3",
+        "version": "1.4.4",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1245,7 +1245,39 @@ async def api_admin_user_detail(telegram_id: int, _: None = Depends(require_admi
             "SELECT * FROM user_reports WHERE reported_telegram_id = ? ORDER BY created_at DESC LIMIT 20",
             (telegram_id,),
         )
-    return {"user": dict(rows[0]), "admin_blocked": bool(blocked), "reports": [dict(row) for row in reports]}
+        activity_rows = await conn.execute_fetchall(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM game_requests WHERE creator_telegram_id = ?) AS games_created,
+                (SELECT COUNT(*) FROM responses WHERE responder_telegram_id = ?) AS responses_sent,
+                (SELECT COUNT(*) FROM game_requests g LEFT JOIN responses r ON r.id = g.accepted_response_id
+                 WHERE g.status IN ('confirmed','completed')
+                   AND (g.creator_telegram_id = ? OR r.responder_telegram_id = ?)) AS confirmed_games,
+                (SELECT COUNT(*) FROM game_requests WHERE no_show_target_id = ?) AS no_shows,
+                (SELECT COUNT(*) FROM favorite_players WHERE favorite_telegram_id = ?) AS favorited_by,
+                (SELECT COUNT(*) FROM referral_events WHERE inviter_telegram_id = ?) AS referrals_registered,
+                (SELECT COUNT(*) FROM referral_events WHERE inviter_telegram_id = ? AND status = 'activated') AS referrals_activated
+            """,
+            (telegram_id, telegram_id, telegram_id, telegram_id, telegram_id, telegram_id, telegram_id, telegram_id),
+        )
+        recent_games = await conn.execute_fetchall(
+            """
+            SELECT DISTINCT g.id, g.city, g.place, g.date_label, g.time_label, g.status,
+                            CASE WHEN g.creator_telegram_id = ? THEN 'creator' ELSE 'responder' END AS role
+            FROM game_requests g
+            LEFT JOIN responses r ON r.game_id = g.id
+            WHERE g.creator_telegram_id = ? OR r.responder_telegram_id = ?
+            ORDER BY g.updated_at DESC LIMIT 8
+            """,
+            (telegram_id, telegram_id, telegram_id),
+        )
+    return {
+        "user": dict(rows[0]),
+        "admin_blocked": bool(blocked),
+        "reports": [dict(row) for row in reports],
+        "activity": dict(activity_rows[0]) if activity_rows else {},
+        "recent_games": [dict(row) for row in recent_games],
+    }
 
 
 @app.get("/api/admin/games")

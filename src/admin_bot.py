@@ -325,15 +325,37 @@ async def user_detail(callback: CallbackQuery):
     data = await api.get(f"/api/admin/users/{user_id}", callback.from_user.id)
     user = data["user"]
     blocked = data.get("admin_blocked", False)
+    activity = data.get("activity", {})
+    confirmed = int(activity.get("confirmed_games") or 0)
+    no_shows = int(activity.get("no_shows") or 0)
+    reliability = round(((max(0, confirmed - no_shows) + 4) / (confirmed + 5)) * 100) if confirmed else 80
+    registered_at = str(user.get("created_at") or "—")[:16].replace("T", " ")
+    last_seen = str(user.get("updated_at") or "—")[:16].replace("T", " ")
+    recent_lines = []
+    for game in data.get("recent_games", []):
+        role = "создал" if game.get("role") == "creator" else "отклик"
+        recent_lines.append(
+            f"• #{game.get('id')} · {game.get('status')} · {role}\n"
+            f"  {html.escape(str(game.get('city') or '—'))}, {html.escape(str(game.get('place') or '—'))} · "
+            f"{html.escape(str(game.get('date_label') or '—'))} {html.escape(str(game.get('time_label') or ''))}"
+        )
     text = (
-        f"👤 <b>{user_name(user)}</b>\n"
+        f"👤 <b>{html.escape(user_name(user))}</b>\n"
         f"ID: <code>{user_id}</code>\n"
-        f"Username: @{user.get('username') or '—'}\n"
-        f"Город: {user.get('profile_city') or user.get('city') or '—'}\n"
-        f"Уровень: {user.get('level') or '—'}\n"
+        f"Username: @{html.escape(str(user.get('username') or '—'))}\n"
+        f"Город: {html.escape(str(user.get('profile_city') or user.get('city') or '—'))}\n"
+        f"Уровень: {html.escape(str(user.get('level') or '—'))}\n"
         f"Рейтинг: {float(user.get('rating_avg') or 0):.1f} ({user.get('rating_count') or 0})\n"
+        f"Надёжность: <b>{reliability}%</b> · встреч {confirmed} · no-show {no_shows}\n"
+        f"Заявки/отклики: {activity.get('games_created', 0)} / {activity.get('responses_sent', 0)}\n"
+        f"В избранном у игроков: {activity.get('favorited_by', 0)}\n"
+        f"Рефералы: {activity.get('referrals_activated', 0)} активных / {activity.get('referrals_registered', 0)} всего\n"
+        f"Реферальные очки: {user.get('referral_points') or 0}\n"
         f"Жалоб: {len(data.get('reports', []))}\n"
+        f"Регистрация: <code>{registered_at}</code>\n"
+        f"Последняя активность: <code>{last_seen}</code>\n"
         f"Статус: {'🔴 заблокирован' if blocked else '🟢 активен'}"
+        + (f"\n\n<b>Последние партии</b>\n{chr(10).join(recent_lines)}" if recent_lines else "")
     )
     action = ("Разблокировать", f"confirm:unblock:{user_id}") if blocked else ("Заблокировать", f"confirm:block:{user_id}")
     await callback.message.edit_text(
