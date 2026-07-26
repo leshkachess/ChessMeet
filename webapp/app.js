@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.3.0';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -463,7 +463,7 @@ function topbar() {
   return `
     <header class="topbar-v7">
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.2.2</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.3.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -636,11 +636,17 @@ function gameCard(game) {
         <span>${game.has_board ? '♟ Доска есть' : '♟ Нужна доска'}</span>
       </div>
       ${game.place_rating?.count ? `<div class="place-rating-line">📍 Место: ${Number(game.place_rating.avg || 0).toFixed(1)}★ · ${game.place_rating.count}</div>` : ''}
+      ${game.match_score ? `<div class="success-strip">Совпадение ${game.match_score}% · ${h((game.match_reasons || []).join(', '))}</div>` : ''}
+      ${game.waitlist_available ? `<div class="note-strip">Партия занята · в очереди: ${Number(game.waitlist_count || 0)}</div>` : ''}
       ${game.comment ? `<p class="game-comment">${h(game.comment)}</p>` : ''}
       <div class="game-actions">
         ${safeMapUrl(game.map_url) ? `<a class="ghost-action" href="${h(safeMapUrl(game.map_url))}" target="_blank" rel="noopener noreferrer">Карта</a>` : ''}
         <button class="ghost-action" data-view-profile="${game.creator?.telegram_id || game.creator_telegram_id}">Профиль</button>
-        ${mine ? `<button class="primary-action" data-nav="my">Моя заявка</button>` : `<button class="primary-action" data-respond="${game.id}">Откликнуться</button>`}
+        ${mine ? `<button class="primary-action" data-nav="my">Моя заявка</button>` : game.waitlist_available
+          ? (game.my_waitlist_position
+            ? `<button class="ghost-action" data-leave-waitlist="${game.id}">В очереди №${game.my_waitlist_position}</button>`
+            : `<button class="primary-action" data-join-waitlist="${game.id}">Встать в очередь</button>`)
+          : `<button class="primary-action" data-respond="${game.id}">Откликнуться</button>`}
       </div>
     </article>
   `;
@@ -812,6 +818,7 @@ function createScreen() {
 
 function myScreen() {
   const all = [...(state.my.created || []), ...(state.my.responded || [])];
+  const waitlisted = state.my.waitlisted || [];
   const reviews = state.my.pending_reviews || [];
   const reviewIds = new Set(reviews.map(g => Number(g.id)));
   const confirmed = uniqueById(all.filter(g => g.status === 'confirmed' && !reviewIds.has(Number(g.id))));
@@ -820,6 +827,7 @@ function myScreen() {
   const diary = uniqueById(all.filter(g => g.my_diary));
   return `
     ${reviews.length ? sectionBlock('Ждут оценки', reviews.map(myGameCard).join('')) : ''}
+    ${waitlisted.length ? sectionBlock('Лист ожидания', waitlisted.map(myGameCard).join('')) : ''}
     ${sectionBlock('Подтверждённые встречи', confirmed.map(myGameCard).join('') || empty('Пока нет подтверждённых встреч.'))}
     ${sectionBlock('Ожидают действия', waiting.map(myGameCard).join('') || empty('Активных ожиданий нет.'))}
     ${collapsibleHistoryBlock(history, diary)}
@@ -1130,6 +1138,8 @@ function render() {
 function bindEvents() {
   document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => navigate(el.dataset.nav)));
   document.querySelectorAll('[data-respond]').forEach(el => el.addEventListener('click', () => { state.responseGameId = Number(el.dataset.respond); render(); }));
+  document.querySelectorAll('[data-join-waitlist]').forEach(el => el.addEventListener('click', () => changeWaitlist(el.dataset.joinWaitlist, true)));
+  document.querySelectorAll('[data-leave-waitlist]').forEach(el => el.addEventListener('click', () => changeWaitlist(el.dataset.leaveWaitlist, false)));
   document.querySelectorAll('[data-close-response]').forEach(el => el.addEventListener('click', () => { state.responseGameId = null; render(); }));
   document.querySelectorAll('[data-manage-responses]').forEach(el => el.addEventListener('click', () => openResponsesManager(el.dataset.manageResponses)));
   document.querySelectorAll('[data-close-responses]').forEach(el => el.addEventListener('click', () => { state.responsesPanelGameId = null; state.gameResponses = []; render(); }));
@@ -1214,6 +1224,16 @@ async function submitResponse(event) {
     showToast('Отклик отправлен');
     await loadGames(); await loadMy(); navigate('my');
   } catch (e) { showToast(e.message); }
+}
+
+async function changeWaitlist(gameId, join) {
+  try {
+    await api(`/api/games/${gameId}/waitlist`, { method: join ? 'POST' : 'DELETE' });
+    showToast(join ? 'Ты добавлен в лист ожидания' : 'Ты вышел из листа ожидания');
+    await loadGames();
+    await loadMy();
+    render();
+  } catch (err) { showToast(err.message); }
 }
 
 async function openResponsesManager(gameId) {

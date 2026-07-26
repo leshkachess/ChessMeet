@@ -6,6 +6,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any
 
@@ -531,6 +532,57 @@ async def report_monitor(bot: Bot) -> None:
         await asyncio.sleep(60)
 
 
+async def daily_external_backup(bot: Bot) -> None:
+    """Keep one recoverable copy outside Railway's filesystem every day."""
+    while True:
+        now = datetime.now(timezone.utc)
+        next_run = (now + timedelta(days=1)).replace(hour=3, minute=0, second=0, microsecond=0)
+        await asyncio.sleep(max(60, (next_run - now).total_seconds()))
+        try:
+            actor = next(iter(OWNER_IDS))
+            content = await api.download("/api/admin/db/backup", actor)
+            stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            document = BufferedInputFile(content, filename=f"chessmeet-{stamp}.sqlite3")
+            for owner_id in OWNER_IDS:
+                await bot.send_document(
+                    owner_id,
+                    document,
+                    caption=f"🗄 Ежедневная резервная копия ChessMeet · {stamp} UTC",
+                )
+        except Exception as exc:
+            for owner_id in OWNER_IDS:
+                try:
+                    await bot.send_message(owner_id, f"⚠️ Не удалось создать ежедневный backup: {str(exc)[:300]}")
+                except Exception:
+                    pass
+
+
+async def service_health_monitor(bot: Bot) -> None:
+    failures = 0
+    alerted = False
+    while True:
+        try:
+            actor = next(iter(OWNER_IDS or ADMIN_IDS))
+            health = await api.get("/api/admin/health", actor)
+            if not health.get("database_exists"):
+                raise RuntimeError("database file is missing")
+            if alerted:
+                for admin_id in ADMIN_IDS:
+                    await bot.send_message(admin_id, "✅ ChessMeet снова работает, база данных доступна.")
+            failures = 0
+            alerted = False
+        except Exception as exc:
+            failures += 1
+            if failures >= 3 and not alerted:
+                alerted = True
+                for admin_id in ADMIN_IDS:
+                    try:
+                        await bot.send_message(admin_id, f"🚨 ChessMeet недоступен три проверки подряд: {str(exc)[:300]}")
+                    except Exception:
+                        pass
+        await asyncio.sleep(120)
+
+
 async def run_admin_bot() -> None:
     if not ADMIN_BOT_TOKEN:
         raise RuntimeError("ADMIN_BOT_TOKEN is required")
@@ -542,10 +594,14 @@ async def run_admin_bot() -> None:
     dispatcher = Dispatcher(storage=MemoryStorage())
     dispatcher.include_router(router)
     monitor = asyncio.create_task(report_monitor(bot))
+    backup_task = asyncio.create_task(daily_external_backup(bot))
+    health_task = asyncio.create_task(service_health_monitor(bot))
     try:
         await dispatcher.start_polling(bot)
     finally:
         monitor.cancel()
+        backup_task.cancel()
+        health_task.cancel()
         await bot.session.close()
 
 

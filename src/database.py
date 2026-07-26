@@ -438,6 +438,19 @@ class Database:
                 )
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS game_waitlist (
+                    game_id INTEGER NOT NULL,
+                    telegram_id INTEGER NOT NULL,
+                    position INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (game_id, telegram_id),
+                    FOREIGN KEY (game_id) REFERENCES game_requests(id),
+                    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+                )
+                """
+            )
 
             # Lightweight migrations from older MVP versions.
             await self._add_column_if_missing(db, "users", "display_name", "TEXT")
@@ -507,6 +520,7 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_game_diary_owner ON game_diary(owner_telegram_id, updated_at)",
                 "CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event_name, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_waitlist_game_position ON game_waitlist(game_id, position, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at)",
             ]:
                 await db.execute(sql)
@@ -941,7 +955,8 @@ class Database:
                     u.rating_avg AS creator_rating_avg,
                     u.rating_count AS creator_rating_count,
                     (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id AND r.status = 'pending') AS pending_responses_count,
-                    (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id) AS responses_count
+                    (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id) AS responses_count,
+                    (SELECT COUNT(*) FROM game_waitlist w WHERE w.game_id = g.id) AS waitlist_count
                 FROM game_requests g
                 LEFT JOIN users u ON u.telegram_id = g.creator_telegram_id
                 WHERE g.id = ?
@@ -950,7 +965,12 @@ class Database:
             )
             return await self._normalize_game_with_extras(dict(rows[0])) if rows else None
 
-    async def list_games(self, city: str = "Минск", limit: int = 50) -> List[Dict[str, Any]]:
+    async def list_games(
+        self,
+        city: str = "Минск",
+        limit: int = 50,
+        viewer_telegram_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         await self.expire_old_games()
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
@@ -972,7 +992,7 @@ class Database:
                     (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id) AS responses_count
                 FROM game_requests g
                 LEFT JOIN users u ON u.telegram_id = g.creator_telegram_id
-                WHERE g.city = ? AND g.status IN ('open', 'pending')
+                WHERE g.city = ? AND g.status IN ('open', 'pending', 'confirmed')
                 ORDER BY COALESCE(g.scheduled_at, g.created_at) ASC, g.id DESC
                 LIMIT ?
                 """,
@@ -980,9 +1000,37 @@ class Database:
             )
             result: List[Dict[str, Any]] = []
             for row in rows:
-                game = await self._normalize_game_with_extras(dict(row))
-                if game["status"] in (STATUS_OPEN, STATUS_PENDING):
+                game = await self._normalize_game_with_extras(dict(row), viewer_telegram_id=viewer_telegram_id)
+                if game["status"] in (STATUS_OPEN, STATUS_PENDING, STATUS_CONFIRMED):
+                    game["waitlist_available"] = game["status"] == STATUS_CONFIRMED
+                    if game["waitlist_available"]:
+                        # A filled meetup may be discoverable for its waitlist, but its
+                        # exact location and participants stay private.
+                        game["address"] = ""
+                        game["map_url"] = ""
+                        game["latitude"] = None
+                        game["longitude"] = None
+                        game["accepted_response"] = None
                     result.append(game)
+            if viewer_telegram_id:
+                viewer = await self.get_user(viewer_telegram_id) or {}
+                viewer_level = str(viewer.get("level") or "").lower()
+                viewer_rating = float(viewer.get("rating_avg") or 0)
+                for game in result:
+                    score = 45
+                    reasons = ["тот же город"]
+                    if viewer_level and viewer_level == str(game.get("level") or "").lower():
+                        score += 25
+                        reasons.append("подходящий уровень")
+                    creator_rating = float(game.get("creator", {}).get("rating_avg") or 0)
+                    if viewer_rating and creator_rating and abs(viewer_rating - creator_rating) <= 1:
+                        score += 15
+                        reasons.append("близкий рейтинг")
+                    if bool(game.get("has_board")):
+                        score += 5
+                    game["match_score"] = min(score, 100)
+                    game["match_reasons"] = reasons
+                result.sort(key=lambda item: (-int(item.get("match_score", 0)), item.get("scheduled_at") or item.get("created_at") or ""))
             return result
 
     async def list_my_games(self, telegram_id: int, limit: int = 100) -> Dict[str, List[Dict[str, Any]]]:
@@ -1000,6 +1048,12 @@ class Database:
                 + " JOIN responses r ON r.game_id = g.id WHERE r.responder_telegram_id = ? ORDER BY g.updated_at DESC LIMIT ?",
                 (telegram_id, limit),
             )
+            waitlist_rows = await db.execute_fetchall(
+                self._games_select_sql(extra="w.position AS my_waitlist_position")
+                + " JOIN game_waitlist w ON w.game_id = g.id WHERE w.telegram_id = ? "
+                  "ORDER BY w.created_at DESC LIMIT ?",
+                (telegram_id, limit),
+            )
 
             pending_reviews_raw = await db.execute_fetchall(
                 self._games_select_sql() + " JOIN responses r ON r.id = g.accepted_response_id "
@@ -1010,14 +1064,57 @@ class Database:
 
             created = [await self._normalize_game_with_extras(dict(row), viewer_telegram_id=telegram_id) for row in created_rows]
             responded = [await self._normalize_game_with_extras(dict(row), viewer_telegram_id=telegram_id) for row in responded_rows]
+            waitlisted = [await self._normalize_game_with_extras(dict(row), viewer_telegram_id=telegram_id) for row in waitlist_rows]
             pending_reviews_all = [await self._normalize_game_with_extras(dict(row), viewer_telegram_id=telegram_id) for row in pending_reviews_raw]
             pending_reviews = [g for g in pending_reviews_all if g.get("rating_can_submit") and not g.get("my_rating")]
 
             return {
                 "created": created,
                 "responded": responded,
+                "waitlisted": waitlisted,
                 "pending_reviews": pending_reviews,
             }
+
+    async def join_waitlist(self, game_id: int, telegram_id: int) -> Dict[str, Any]:
+        ts = now_iso()
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall("SELECT * FROM game_requests WHERE id = ?", (game_id,))
+            if not rows:
+                raise ValueError("GAME_NOT_FOUND")
+            game = dict(rows[0])
+            if int(game["creator_telegram_id"]) == int(telegram_id):
+                raise ValueError("CANNOT_JOIN_OWN_WAITLIST")
+            if game["status"] != STATUS_CONFIRMED:
+                raise ValueError("WAITLIST_NOT_AVAILABLE")
+            blocked = await db.execute_fetchall(
+                "SELECT 1 FROM user_blocks WHERE "
+                "(blocker_telegram_id = ? AND blocked_telegram_id = ?) OR "
+                "(blocker_telegram_id = ? AND blocked_telegram_id = ?)",
+                (game["creator_telegram_id"], telegram_id, telegram_id, game["creator_telegram_id"]),
+            )
+            if blocked:
+                raise ValueError("USER_BLOCKED")
+            position_rows = await db.execute_fetchall(
+                "SELECT COALESCE(MAX(position), 0) + 1 FROM game_waitlist WHERE game_id = ?",
+                (game_id,),
+            )
+            position = int(position_rows[0][0])
+            await db.execute(
+                "INSERT OR IGNORE INTO game_waitlist (game_id, telegram_id, position, created_at) VALUES (?, ?, ?, ?)",
+                (game_id, telegram_id, position, ts),
+            )
+            await db.commit()
+            own = await db.execute_fetchall(
+                "SELECT position, created_at FROM game_waitlist WHERE game_id = ? AND telegram_id = ?",
+                (game_id, telegram_id),
+            )
+            return {"game_id": game_id, "position": int(own[0]["position"]), "created_at": own[0]["created_at"]}
+
+    async def leave_waitlist(self, game_id: int, telegram_id: int) -> None:
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute("DELETE FROM game_waitlist WHERE game_id = ? AND telegram_id = ?", (game_id, telegram_id))
+            await db.commit()
 
     async def create_response(self, game_id: int, responder_telegram_id: int, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         ts = now_iso()
@@ -1237,11 +1334,48 @@ class Database:
                     accepted_responder_id = rr[0][0]
             if requester_telegram_id not in {game["creator_telegram_id"], accepted_responder_id}:
                 raise ValueError("NOT_ALLOWED")
-            await db.execute("UPDATE game_requests SET status = 'cancelled', cancel_reason = ?, updated_at = ? WHERE id = ?", ((reason or "").strip()[:200], ts, game_id))
             await db.execute(
                 "UPDATE responses SET status = 'declined', updated_at = ? WHERE game_id = ? AND status IN ('pending','accepted')",
                 (ts, game_id),
             )
+            if requester_telegram_id == accepted_responder_id:
+                next_rows = await db.execute_fetchall(
+                    "SELECT telegram_id FROM game_waitlist WHERE game_id = ? ORDER BY position, created_at LIMIT 1",
+                    (game_id,),
+                )
+                if next_rows:
+                    promoted_id = int(next_rows[0]["telegram_id"])
+                    await db.execute(
+                        """
+                        INSERT INTO responses
+                            (game_id, responder_telegram_id, status, proposed_comment, created_at, updated_at)
+                        VALUES (?, ?, 'pending', ?, ?, ?)
+                        ON CONFLICT(game_id, responder_telegram_id) DO UPDATE SET
+                            status = 'pending', proposed_comment = excluded.proposed_comment, updated_at = excluded.updated_at
+                        """,
+                        (game_id, promoted_id, "Автоматически поднят из листа ожидания", ts, ts),
+                    )
+                    await db.execute(
+                        "DELETE FROM game_waitlist WHERE game_id = ? AND telegram_id = ?",
+                        (game_id, promoted_id),
+                    )
+                    await db.execute(
+                        "UPDATE game_requests SET status = 'pending', accepted_response_id = NULL, "
+                        "creator_confirmed = 0, responder_confirmed = 0, cancel_reason = ?, updated_at = ? WHERE id = ?",
+                        ((reason or "").strip()[:200], ts, game_id),
+                    )
+                else:
+                    await db.execute(
+                        "UPDATE game_requests SET status = 'open', accepted_response_id = NULL, "
+                        "creator_confirmed = 0, responder_confirmed = 0, cancel_reason = ?, updated_at = ? WHERE id = ?",
+                        ((reason or "").strip()[:200], ts, game_id),
+                    )
+            else:
+                await db.execute(
+                    "UPDATE game_requests SET status = 'cancelled', cancel_reason = ?, updated_at = ? WHERE id = ?",
+                    ((reason or "").strip()[:200], ts, game_id),
+                )
+                await db.execute("DELETE FROM game_waitlist WHERE game_id = ?", (game_id,))
             await db.commit()
             result = await self.get_game(game_id)
             if not result:
@@ -1359,7 +1493,8 @@ class Database:
                 u.rating_avg AS creator_rating_avg,
                 u.rating_count AS creator_rating_count,
                 (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id AND r.status = 'pending') AS pending_responses_count,
-                (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id) AS responses_count
+                (SELECT COUNT(*) FROM responses r WHERE r.game_id = g.id) AS responses_count,
+                (SELECT COUNT(*) FROM game_waitlist w WHERE w.game_id = g.id) AS waitlist_count
             """
             + extra_sql
             + """
@@ -1424,6 +1559,13 @@ class Database:
         game["place_rating"] = await self._get_place_rating_summary(game)
         game["my_place_rating"] = await self._get_my_place_rating(int(game["id"]), viewer_telegram_id)
         game["my_diary"] = await self._get_my_diary_entry(int(game["id"]), viewer_telegram_id)
+        if viewer_telegram_id:
+            async with aiosqlite.connect(self.path) as db:
+                own_waitlist = await db.execute_fetchall(
+                    "SELECT position FROM game_waitlist WHERE game_id = ? AND telegram_id = ?",
+                    (int(game["id"]), viewer_telegram_id),
+                )
+            game["my_waitlist_position"] = int(own_waitlist[0][0]) if own_waitlist else None
         return game
 
     async def _get_response_basic(self, response_id: int) -> Optional[Dict[str, Any]]:
@@ -2341,7 +2483,19 @@ class Database:
                 (telegram_id, telegram_id),
             )
             games_count = int(rows2[0][0]) if rows2 else 0
-            return {"games_count": games_count, "no_show_count": no_show}
+            successful = max(0, games_count - no_show)
+            # A small Bayesian prior prevents a brand-new account from showing 100%.
+            score = round(((successful + 4) / (games_count + 5)) * 100)
+            if games_count == 0:
+                score = 80
+            label = "excellent" if score >= 95 else "good" if score >= 85 else "attention" if score >= 70 else "low"
+            return {
+                "games_count": games_count,
+                "no_show_count": no_show,
+                "successful_games": successful,
+                "score": max(0, min(score, 100)),
+                "label": label,
+            }
 
 
 
@@ -2426,6 +2580,7 @@ class Database:
         game["cancel_reason"] = game.get("cancel_reason") or ""
         game["responses_count"] = int(game.get("responses_count") or 0)
         game["pending_responses_count"] = int(game.get("pending_responses_count") or 0)
+        game["waitlist_count"] = int(game.get("waitlist_count") or 0)
         show_username = bool(game.pop("creator_show_telegram_username", 0))
         username = game.pop("creator_username", None)
         display_name = game.pop("creator_display_name", None) or game.get("creator_first_name") or "Игрок"

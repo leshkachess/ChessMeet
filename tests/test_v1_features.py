@@ -157,3 +157,36 @@ def test_signed_webapp_fallback_auth():
         pass
     else:
         raise AssertionError("Tampered fallback token was accepted")
+
+
+def test_smart_matching_reliability_and_waitlist_promotion(tmp_path):
+    async def scenario():
+        db = Database(str(tmp_path / "matching.sqlite3"))
+        await db.init()
+        city = "\u041c\u0438\u043d\u0441\u043a"
+        level = "\u0421\u0440\u0435\u0434\u043d\u0438\u0439"
+        for user_id, name in [(1, "Owner"), (2, "Player"), (3, "Waiting")]:
+            await db.upsert_user({"id": user_id, "first_name": name}, default_city=city)
+            await db.update_user_profile(user_id, {
+                "display_name": name, "profile_city": city, "level": level,
+            })
+        game = await db.create_game(1, {
+            "city": city, "place": "Club", "date_label": "2099-08-01",
+            "time_label": "18:00", "game_format": "\u0420\u0430\u043f\u0438\u0434",
+            "level": level,
+        })
+        response = await db.create_response(game["id"], 2)
+        await db.accept_response(response["id"])
+        queued = await db.join_waitlist(game["id"], 3)
+        assert queued["position"] == 1
+        reopened = await db.cancel_game(game["id"], 2, "plans changed")
+        assert reopened["status"] == "pending"
+        promoted = await db.list_game_responses(game["id"], 1)
+        assert any(item["responder_telegram_id"] == 3 and item["status"] == "pending" for item in promoted)
+
+        games = await db.list_games(city, viewer_telegram_id=3)
+        assert games[0]["match_score"] >= 70
+        reliability = await db._user_reliability(3)
+        assert reliability["score"] == 80
+
+    asyncio.run(scenario())

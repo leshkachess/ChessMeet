@@ -346,7 +346,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.2.2", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.3.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -462,7 +462,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.2.2",
+        "version": "1.3.0",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -515,7 +515,7 @@ async def api_bootstrap(user: Dict[str, Any] = Depends(current_user)):
     user["badges"] = await db.list_user_badges(int(user["telegram_id"]), public_only=False)
     city = user.get("profile_city") or DEFAULT_CITY
     games, my, daily_puzzle = await asyncio.gather(
-        db.list_games(city=city or DEFAULT_CITY),
+        db.list_games(city=city or DEFAULT_CITY, viewer_telegram_id=int(user["telegram_id"])),
         db.list_my_games(telegram_id=int(user["telegram_id"])),
         db.get_daily_puzzle(int(user["telegram_id"]), puzzle_date=city_today_key(city)),
     )
@@ -640,7 +640,7 @@ async def api_answer_daily_puzzle(payload: DailyPuzzleAnswer, user: Dict[str, An
 async def api_games(city: str = DEFAULT_CITY, user: Dict[str, Any] = Depends(current_user)):
     if not is_supported_city(city):
         raise HTTPException(status_code=400, detail="Unsupported city")
-    games = await db.list_games(city=canonical_city(city))
+    games = await db.list_games(city=canonical_city(city), viewer_telegram_id=int(user["telegram_id"]))
     return {"games": games}
 
 @app.get("/api/cities/{city}/stats")
@@ -738,6 +738,27 @@ async def api_respond_game(game_id: int, payload: Optional[ResponseCreate] = Non
             pass
 
     return {"response": response}
+
+
+@app.post("/api/games/{game_id}/waitlist")
+async def api_join_waitlist(game_id: int, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        return {"waitlist": await db.join_waitlist(game_id, int(user["telegram_id"]))}
+    except ValueError as exc:
+        mapping = {
+            "GAME_NOT_FOUND": (404, "Заявка не найдена"),
+            "CANNOT_JOIN_OWN_WAITLIST": (400, "Нельзя вступить в очередь своей заявки"),
+            "WAITLIST_NOT_AVAILABLE": (409, "Лист ожидания доступен только для занятой партии"),
+            "USER_BLOCKED": (403, "Вступить в очередь невозможно"),
+        }
+        status_code, detail = mapping.get(str(exc), (400, str(exc)))
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+@app.delete("/api/games/{game_id}/waitlist", status_code=204)
+async def api_leave_waitlist(game_id: int, user: Dict[str, Any] = Depends(current_user)):
+    await db.leave_waitlist(game_id, int(user["telegram_id"]))
+    return Response(status_code=204)
 
 @app.get("/api/games/{game_id}/responses")
 async def api_game_responses(game_id: int, user: Dict[str, Any] = Depends(current_user)):
@@ -1080,7 +1101,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.2.2",
+        "version": "1.3.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

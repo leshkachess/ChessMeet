@@ -155,6 +155,14 @@
     'Файл календаря создан': 'Calendar file created',
     'Отметить, что соперник не пришёл?': 'Mark that your opponent did not show up?',
     'Заблокировать этого пользователя? Он не сможет откликаться на твои заявки.': 'Block this user? They will no longer be able to join your games.',
+    'тот же город': 'same city',
+    'подходящий уровень': 'matching level',
+    'близкий рейтинг': 'similar rating',
+    'Лист ожидания': 'Waitlist',
+    'Встать в очередь': 'Join waitlist',
+    'Ты добавлен в лист ожидания': 'You joined the waitlist',
+    'Ты вышел из листа ожидания': 'You left the waitlist',
+    'Партия занята': 'Game is full',
   };
 
   function normalize(code) {
@@ -175,6 +183,9 @@
       [/^Приглашено: (\d+)$/, 'Invited: $1'],
       [/^Сыграно: (\d+)$/, 'Played: $1'],
       [/^Верно: (.+)$/, 'Correct: $1'],
+      [/^Совпадение (\d+)% · (.+)$/, '$1% match · $2'],
+      [/^Партия занята · в очереди: (\d+)$/, 'Game is full · waitlist: $1'],
+      [/^В очереди №(\d+)$/, 'Waitlist #$1'],
     ];
     for (const [pattern, replacement] of patterns) {
       if (pattern.test(text)) return `${leading}${text.replace(pattern, replacement)}${trailing}`;
