@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.4.9';
+const APP_VERSION = '1.4.10';
 const OFFICIAL_BOT_USERNAME = 'chessmeetbot';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
@@ -418,7 +418,7 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && ['home', 'games', 'my', 'puzzle', 'chat'].includes(state.screen)) hydrate({ silent: true });
 });
 
-function navigate(screen) {
+function navigate(screen, { scrollTop = true } = {}) {
   state.screen = screen;
   trackEvent('screen_view', { screen, city: selectedCity() });
   const url = new URL(location.href);
@@ -426,12 +426,17 @@ function navigate(screen) {
   if (screen !== 'chat') url.searchParams.delete('game');
   history.pushState({ screen }, '', url.toString());
   render();
+  if (scrollTop) requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    document.querySelector('.content')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+  });
   hydrate();
 }
 
 function goBack() {
   if (history.state?.screen && history.length > 1) history.back();
-  else if (state.screen !== 'home') navigate('home');
+  else if (state.screen !== 'home') navigate('home', { scrollTop: false });
 }
 
 window.addEventListener('popstate', () => {
@@ -476,7 +481,7 @@ function topbar() {
     <header class="topbar-v7">
       ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.9</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.10</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
