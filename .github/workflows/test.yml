@@ -19,7 +19,9 @@ jobs:
       - name: Run tests
         id: pytest
         continue-on-error: true
-        run: pytest -q 2>&1 | tee pytest-output.txt
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee pytest-output.txt
       - name: Publish test output
         if: always()
         run: |
