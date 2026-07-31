@@ -48,7 +48,8 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.4.8';
+const APP_VERSION = '1.4.9';
+const OFFICIAL_BOT_USERNAME = 'chessmeetbot';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -315,7 +316,7 @@ async function bootstrap() {
         const response = await fetch('/api/config');
         if (response.ok) config = await response.json();
       } catch (_) {}
-      renderTelegramLaunch(config.bot_username || '');
+      renderTelegramLaunch(OFFICIAL_BOT_USERNAME);
       return;
     }
     const hadCache = hydrateFromCache();
@@ -475,7 +476,7 @@ function topbar() {
     <header class="topbar-v7">
       ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.8</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.9</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1384,15 +1385,13 @@ async function updateDiary(gameId) {
 
 function inviteLink() {
   const id = state.me?.telegram_id;
-  const bot = state.config?.bot_username;
-  return bot ? `https://t.me/${bot}?start=ref_${id}` : `Открой ChessMeet Bot и введи /start ref_${id}`;
+  return `https://t.me/${OFFICIAL_BOT_USERNAME}?start=ref_${id}`;
 }
 
 function shareInvite() {
-  const bot = state.config?.bot_username;
   const link = inviteLink();
   const text = `Сыграем в шахматы офлайн? Я использую ChessMeet: ${link}`;
-  if (navigator.share) navigator.share({ title: 'ChessMeet', text, url: bot ? link : undefined }).catch(() => {});
+  if (navigator.share) navigator.share({ title: 'ChessMeet', text, url: link }).catch(() => {});
   else { navigator.clipboard?.writeText(text); showToast('Текст приглашения скопирован'); }
 }
 
@@ -1481,8 +1480,7 @@ async function submitProfile(e) {
 }
 
 function renderTelegramLaunch(botUsername) {
-  const username = String(botUsername || '').replace(/^@/, '');
-  const link = username ? `https://t.me/${encodeURIComponent(username)}?start=app` : 'https://t.me/';
+  const link = `https://t.me/${OFFICIAL_BOT_USERNAME}?start=app`;
   app.innerHTML = `
     <main class="auth-launch-shell">
       <section class="auth-launch-card">
