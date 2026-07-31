@@ -23,7 +23,7 @@ jobs:
           set -o pipefail
           pytest -q 2>&1 | tee pytest-output.txt
       - name: Publish test output
-        if: always()
+        if: steps.pytest.outcome != 'success'
         run: |
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           cat pytest-output.txt >> "$GITHUB_STEP_SUMMARY"
