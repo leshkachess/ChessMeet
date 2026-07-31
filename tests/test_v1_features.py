@@ -18,11 +18,12 @@ def test_city_catalog_has_expected_groups():
     assert sum(city["country"] == "RU" for city in cities) == 10
 
 
-def test_fallback_auth_is_kept_out_of_http_query():
+def test_fallback_auth_supports_telegram_desktop_query_urls():
     url = authenticated_webapp_url("https://example.test/app", {"id": 42, "first_name": "A"}, "secret", screen="games")
     parsed = urlsplit(url)
-    assert parse_qs(parsed.query) == {"screen": ["games"]}
-    token = parse_qs(parsed.fragment)["auth"][0]
+    query = parse_qs(parsed.query)
+    assert query["screen"] == ["games"]
+    token = query["auth"][0]
     assert validate_webapp_auth_token(token, "secret")["id"] == 42
 
 

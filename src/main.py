@@ -384,7 +384,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.5.0", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.5.1", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -504,7 +504,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.5.0",
+        "version": "1.5.1",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -525,7 +525,7 @@ async def map_tile(zoom: int, tile_x: int, tile_y: int):
         def fetch_tile() -> bytes:
             request = Request(
                 f"https://tile.openstreetmap.org/{cache_key}.png",
-                headers={"User-Agent": "ChessMeet/1.5.0 (Telegram Mini App; contact: @chessmeetbot)"},
+                headers={"User-Agent": "ChessMeet/1.5.1 (Telegram Mini App; contact: @chessmeetbot)"},
             )
             with urlopen(request, timeout=12) as upstream:
                 return upstream.read(1_000_000)
@@ -1210,7 +1210,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.5.0",
+        "version": "1.5.1",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

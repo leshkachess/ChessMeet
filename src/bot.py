@@ -46,10 +46,11 @@ def safe_map_link(value: object) -> str:
 
 
 def authenticated_webapp_url(webapp_url: str, user: Dict, bot_token: str, **params: str) -> str:
-    page_url = f"{webapp_url}?{urlencode(params)}" if params else webapp_url
     token = create_webapp_auth_token(user, bot_token)
-    # URL fragments never reach HTTP/proxy logs or Referer headers.
-    return f"{page_url}#{urlencode({'auth': token})}"
+    # Telegram Desktop 1.4.x may discard URL fragments when opening a Mini App,
+    # so retain the short-lived fallback credential in the query for desktop
+    # compatibility. The frontend removes it with replaceState immediately.
+    return f"{webapp_url}?{urlencode({'auth': token, **params})}"
 
 
 def main_keyboard(webapp_url: str, user: Dict | None = None, bot_token: str = "") -> InlineKeyboardMarkup:
