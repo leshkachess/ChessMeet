@@ -2,10 +2,12 @@ from datetime import datetime, timezone
 import asyncio
 
 from src.cities import city_catalog, city_today_key
-from src.main import GameCreate, PreferencesUpdate, resolve_database_path
-from src.database import Database
+from src.main import GameCreate, PreferencesUpdate, resolve_database_path, _csv_response
+from src.database import Database, validate_image_data_url
 from src.auth import create_webapp_auth_token, validate_webapp_auth_token, TelegramAuthError
-from src.bot import parse_referral_arg
+from src.bot import authenticated_webapp_url, parse_referral_arg, safe_map_link
+from urllib.parse import parse_qs, urlsplit
+import base64
 from src.admin_bot import compact_cell
 
 
@@ -14,6 +16,32 @@ def test_city_catalog_has_expected_groups():
     assert len(cities) == 16
     assert sum(city["country"] == "BY" for city in cities) == 6
     assert sum(city["country"] == "RU" for city in cities) == 10
+
+
+def test_fallback_auth_is_kept_out_of_http_query():
+    url = authenticated_webapp_url("https://example.test/app", {"id": 42, "first_name": "A"}, "secret", screen="games")
+    parsed = urlsplit(url)
+    assert parse_qs(parsed.query) == {"screen": ["games"]}
+    token = parse_qs(parsed.fragment)["auth"][0]
+    assert validate_webapp_auth_token(token, "secret")["id"] == 42
+
+
+def test_untrusted_map_links_and_csv_formulas_are_neutralized():
+    assert safe_map_link('https://evil.test/\" onclick=\"x') == ""
+    assert "openstreetmap.org" in safe_map_link("https://www.openstreetmap.org/?mlat=1&amp;mlon=2")
+    csv_text = _csv_response("users.csv", [{"name": "=HYPERLINK(\"bad\")"}]).body.decode()
+    assert "'=HYPERLINK" in csv_text
+
+
+def test_image_data_url_requires_real_matching_image_signature():
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\nminimal").decode()
+    assert validate_image_data_url(f"data:image/png;base64,{png}", 1000).startswith("data:image/png")
+    fake = base64.b64encode(b"not an image").decode()
+    try:
+        validate_image_data_url(f"data:image/png;base64,{fake}", 1000)
+        assert False, "fake image must be rejected"
+    except ValueError as exc:
+        assert str(exc) == "INVALID_PHOTO"
 
 
 def test_city_dates_follow_local_timezone():

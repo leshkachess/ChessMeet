@@ -1,9 +1,9 @@
-const CACHE = 'chessmeet-v1.4.10';
+const CACHE = 'chessmeet-v1.5.0';
 const SHELL = [
   '/',
-  '/static/styles.css?v=1.4.10',
-  '/static/i18n.js?v=1.4.10',
-  '/static/app.js?v=1.4.10',
+  '/static/styles.css?v=1.5.0',
+  '/static/i18n.js?v=1.5.0',
+  '/static/app.js?v=1.5.0',
 ];
 
 self.addEventListener('install', event => {

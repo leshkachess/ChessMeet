@@ -4,6 +4,7 @@
 .test-tmp-*/
 /map-test*.png
 /visual-auth-url.txt
+/bandit-report.json
 __pycache__/
 *.pyc
 *.pyo

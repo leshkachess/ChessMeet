@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import base64
+import binascii
 import csv
 import io
 import json
@@ -28,6 +30,32 @@ except Exception:  # pragma: no cover - fallback when zstandard is not installed
 STATUS_OPEN = "open"
 STATUS_PENDING = "pending"
 STATUS_CONFIRMED = "confirmed"
+
+
+def validate_image_data_url(value: str, max_encoded_length: int) -> str:
+    value = (value or "").strip()
+    if not value:
+        return ""
+    if len(value) > max_encoded_length:
+        raise ValueError("PHOTO_TOO_LARGE")
+    match = re.fullmatch(r"data:image/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/]+={0,2})", value, re.IGNORECASE)
+    if not match:
+        raise ValueError("INVALID_PHOTO")
+    try:
+        payload = base64.b64decode(match.group(2), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("INVALID_PHOTO") from exc
+    kind = match.group(1).lower()
+    valid = {
+        "png": payload.startswith(b"\x89PNG\r\n\x1a\n"),
+        "jpg": payload.startswith(b"\xff\xd8\xff"),
+        "jpeg": payload.startswith(b"\xff\xd8\xff"),
+        "gif": payload.startswith((b"GIF87a", b"GIF89a")),
+        "webp": len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP",
+    }.get(kind, False)
+    if not valid:
+        raise ValueError("INVALID_PHOTO")
+    return value
 STATUS_CANCELLED = "cancelled"
 STATUS_EXPIRED = "expired"
 STATUS_COMPLETED = "completed"
@@ -710,11 +738,7 @@ class Database:
         profile_city = canonical_city(data.get("profile_city") or data.get("city") or "Минск")
         level = (data.get("level") or "Средний").strip()[:80]
         bio = (data.get("bio") or "").strip()[:300]
-        photo_data_url = (data.get("photo_data_url") or "").strip()
-        if len(photo_data_url) > 2_000_000:
-            raise ValueError("PHOTO_TOO_LARGE")
-        if photo_data_url and not re.match(r"^data:image/(?:png|jpe?g|webp|gif);base64,", photo_data_url, re.IGNORECASE):
-            raise ValueError("INVALID_PHOTO")
+        photo_data_url = validate_image_data_url(data.get("photo_data_url") or "", 2_000_000)
         show_username = 1 if data.get("show_telegram_username") else 0
         notify_game_reminders = 1 if data.get("notify_game_reminders", True) else 0
         notify_new_requests = 1 if data.get("notify_new_requests", False) else 0
@@ -787,6 +811,20 @@ class Database:
             raise ValueError("INVALID_CITY_NAME")
         ts = now_iso()
         async with aiosqlite.connect(self.path) as db:
+            duplicate = await db.execute_fetchall(
+                "SELECT id, created_at FROM city_requests WHERE telegram_id = ? "
+                "AND lower(city_name) = lower(?) AND status = 'new' ORDER BY id DESC LIMIT 1",
+                (telegram_id, city_name),
+            )
+            if duplicate:
+                return {"id": duplicate[0][0], "telegram_id": telegram_id, "city_name": city_name,
+                        "sender_name": sender_name, "status": "new", "created_at": duplicate[0][1], "created": False}
+            recent = await db.execute_fetchall(
+                "SELECT COUNT(*) FROM city_requests WHERE telegram_id = ? AND created_at >= ?",
+                (telegram_id, (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()),
+            )
+            if recent and int(recent[0][0]) >= 5:
+                raise ValueError("CITY_REQUEST_RATE_LIMIT")
             cursor = await db.execute(
                 "INSERT INTO city_requests (telegram_id, city_name, sender_name, created_at) VALUES (?, ?, ?, ?)",
                 (telegram_id, city_name, sender_name.strip()[:120] or str(telegram_id), ts),
@@ -794,7 +832,7 @@ class Database:
             await db.execute("UPDATE users SET onboarding_completed = 1, updated_at = ? WHERE telegram_id = ?", (ts, telegram_id))
             await db.commit()
         return {"id": cursor.lastrowid, "telegram_id": telegram_id, "city_name": city_name,
-                "sender_name": sender_name, "status": "new", "created_at": ts}
+                "sender_name": sender_name, "status": "new", "created_at": ts, "created": True}
 
     async def city_stats(self, city: str) -> Dict[str, Any]:
         city = canonical_city(city)
@@ -2617,11 +2655,9 @@ class Database:
 
     async def add_game_photo(self, game_id: int, uploader_telegram_id: int, photo_data_url: str, caption: str = "") -> Dict[str, Any]:
         await self._ensure_after_game_action_available(game_id, uploader_telegram_id)
-        photo_data_url = (photo_data_url or "").strip()
-        if not re.match(r"^data:image/(?:png|jpe?g|webp|gif);base64,", photo_data_url, re.IGNORECASE):
+        photo_data_url = validate_image_data_url(photo_data_url, 2_500_000)
+        if not photo_data_url:
             raise ValueError("INVALID_PHOTO")
-        if len(photo_data_url) > 2_500_000:
-            raise ValueError("PHOTO_TOO_LARGE")
         ts = now_iso()
         async with aiosqlite.connect(self.path) as db:
             cursor = await db.execute(

@@ -6,6 +6,7 @@ import csv
 import io
 import shutil
 import hmac
+import html
 import json
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -96,6 +97,7 @@ polling_task: Optional[asyncio.Task] = None
 notification_task: Optional[asyncio.Task] = None
 admin_bot_task: Optional[asyncio.Task] = None
 map_tile_cache: Dict[str, bytes] = {}
+map_tile_fetch_limit = asyncio.Semaphore(8)
 
 
 class GameCreate(BaseModel):
@@ -382,7 +384,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.10", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.5.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -415,6 +417,10 @@ async def security_headers(request, call_next):
         "connect-src 'self' https://nominatim.openstreetmap.org; "
         "font-src 'self' data:; frame-ancestors https://web.telegram.org https://*.telegram.org"
     )
+    if WEBAPP_URL.startswith("https://"):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
     return response
 
 
@@ -498,7 +504,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.10",
+        "version": "1.5.0",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -519,14 +525,17 @@ async def map_tile(zoom: int, tile_x: int, tile_y: int):
         def fetch_tile() -> bytes:
             request = Request(
                 f"https://tile.openstreetmap.org/{cache_key}.png",
-                headers={"User-Agent": "ChessMeet/1.4.10 (Telegram Mini App; contact: @chessmeetbot)"},
+                headers={"User-Agent": "ChessMeet/1.5.0 (Telegram Mini App; contact: @chessmeetbot)"},
             )
             with urlopen(request, timeout=12) as upstream:
                 return upstream.read(1_000_000)
         try:
-            content = await asyncio.to_thread(fetch_tile)
+            async with map_tile_fetch_limit:
+                content = await asyncio.to_thread(fetch_tile)
         except Exception as exc:
             raise HTTPException(status_code=502, detail="Map provider unavailable") from exc
+        if not content.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise HTTPException(status_code=502, detail="Invalid map provider response")
         if len(map_tile_cache) >= 512:
             map_tile_cache.pop(next(iter(map_tile_cache)))
         map_tile_cache[cache_key] = content
@@ -673,11 +682,11 @@ async def api_city_request(payload: CityRequestCreate, user: Dict[str, Any] = De
         request = await db.create_city_request(int(user["telegram_id"]), payload.city_name, sender_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Введите название города") from exc
-    if bot:
+    if bot and request.get("created", True):
         admin_ids = {int(item) for item in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(";", ",").split(",") if item.strip().isdigit()}
         for admin_id in admin_ids:
             try:
-                await bot.send_message(admin_id, f"🏙 Новый город: <b>{request['city_name']}</b>\nОтправитель: <b>{sender_name}</b> · <code>{user['telegram_id']}</code>")
+                await bot.send_message(admin_id, f"🏙 Новый город: <b>{html.escape(request['city_name'])}</b>\nОтправитель: <b>{html.escape(sender_name)}</b> · <code>{user['telegram_id']}</code>")
             except Exception:
                 pass
     return {"ok": True, "request": request, "user": await db.get_user(int(user["telegram_id"]))}
@@ -1163,7 +1172,7 @@ async def _admin_table_rows(table: str, columns: str = "*", order_by: str = "id 
     allowed_tables = {
         "users", "game_requests", "responses", "ratings", "user_reports", "game_photos",
         "chat_messages", "badges", "user_badges", "user_blocks", "daily_puzzle_attempts",
-        "admin_audit_log",
+        "admin_audit_log", "city_requests",
     }
     if table not in allowed_tables:
         raise HTTPException(status_code=400, detail="Unsupported table")
@@ -1178,7 +1187,15 @@ def _csv_response(filename: str, rows: list[dict[str, Any]]) -> Response:
     if rows:
         writer = csv.DictWriter(buffer, fieldnames=list(rows[0].keys()))
         writer.writeheader()
-        writer.writerows(rows)
+        safe_rows = []
+        for row in rows:
+            safe_row = {}
+            for key, value in row.items():
+                if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+                    value = "'" + value
+                safe_row[key] = value
+            safe_rows.append(safe_row)
+        writer.writerows(safe_rows)
     else:
         buffer.write("")
     return Response(
@@ -1193,7 +1210,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.10",
+        "version": "1.5.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

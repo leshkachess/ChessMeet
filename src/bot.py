@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import html
 from typing import Dict
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
@@ -28,13 +29,27 @@ def parse_referral_arg(value: str | None) -> int | None:
 
 def display_name(user: Dict) -> str:
     if user.get("show_telegram_username") and user.get("username"):
-        return f"@{user['username']}"
-    return user.get("display_name") or user.get("first_name") or "Игрок"
+        return html.escape(f"@{user['username']}")
+    return html.escape(str(user.get("display_name") or user.get("first_name") or "Игрок"))
+
+
+def escaped(value: object) -> str:
+    return html.escape(str(value or ""))
+
+
+def safe_map_link(value: object) -> str:
+    url = str(value or "").strip()
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname not in {"openstreetmap.org", "www.openstreetmap.org"}:
+        return ""
+    return f'\n🗺 <a href="{html.escape(url, quote=True)}">Открыть место на карте</a>'
 
 
 def authenticated_webapp_url(webapp_url: str, user: Dict, bot_token: str, **params: str) -> str:
-    query = {"auth": create_webapp_auth_token(user, bot_token), **params}
-    return f"{webapp_url}?{urlencode(query)}"
+    page_url = f"{webapp_url}?{urlencode(params)}" if params else webapp_url
+    token = create_webapp_auth_token(user, bot_token)
+    # URL fragments never reach HTTP/proxy logs or Referer headers.
+    return f"{page_url}#{urlencode({'auth': token})}"
 
 
 def main_keyboard(webapp_url: str, user: Dict | None = None, bot_token: str = "") -> InlineKeyboardMarkup:
@@ -91,23 +106,23 @@ async def notify_creator_about_response(bot: Bot, db: Database, response_id: int
 
     responder = await db.get_user(details["responder_telegram_id"])
     responder_name = display_name(responder or {"first_name": "Игрок"})
-    address = f"\n📌 {details['address']}" if details.get("address") else ""
-    map_link = f"\n🗺 <a href=\"{details['map_url']}\">Открыть место на карте</a>" if details.get("map_url") else ""
+    address = f"\n📌 {escaped(details['address'])}" if details.get("address") else ""
+    map_link = safe_map_link(details.get("map_url"))
     proposed = ""
     if details.get("proposed_time_label") or details.get("proposed_comment"):
         proposed = "\n\n🕒 <b>Предложение игрока</b>"
         if details.get("proposed_date_label") or details.get("proposed_time_label"):
-            proposed += f"\nДата/время: {details.get('proposed_date_label') or details['date_label']} {details.get('proposed_time_label') or ''}"
+            proposed += f"\nДата/время: {escaped(details.get('proposed_date_label') or details['date_label'])} {escaped(details.get('proposed_time_label'))}"
         if details.get("proposed_comment"):
-            proposed += f"\nКомментарий: {details['proposed_comment']}"
+            proposed += f"\nКомментарий: {escaped(details['proposed_comment'])}"
     text = (
         f"♟ <b>Новый отклик на твою заявку</b>\n\n"
         f"{responder_name} хочет сыграть с тобой.\n\n"
-        f"📍 {details['city']}, {details['place']}"
+        f"📍 {escaped(details['city'])}, {escaped(details['place'])}"
         f"{address}"
         f"{map_link}\n"
-        f"🗓 {details['date_label']} в {details['time_label']}\n"
-        f"⏱ {details['game_format']}"
+        f"🗓 {escaped(details['date_label'])} в {escaped(details['time_label'])}\n"
+        f"⏱ {escaped(details['game_format'])}"
         f"{proposed}\n\n"
         f"Принять отклик?"
     )
@@ -193,8 +208,8 @@ async def notify_response_accepted(bot: Bot, db: Database, response_id: int, web
     details = await db.get_response_details(response_id)
     if not details:
         return
-    address = f"\n📌 {details['address']}" if details.get("address") else ""
-    map_link = f"\n🗺 <a href=\"{details['map_url']}\">Открыть место на карте</a>" if details.get("map_url") else ""
+    address = f"\n📌 {escaped(details['address'])}" if details.get("address") else ""
+    map_link = safe_map_link(details.get("map_url"))
     creator = await db.get_user(details["creator_telegram_id"])
     creator_name = display_name(creator or {"first_name": "Игрок"})
     await bot.send_message(
