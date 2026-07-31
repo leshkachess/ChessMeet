@@ -8,6 +8,7 @@ import shutil
 import hmac
 import json
 from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 from datetime import datetime, timedelta, timezone
 import aiosqlite
 from contextlib import asynccontextmanager
@@ -92,6 +93,7 @@ bot: Optional[Bot] = None
 polling_task: Optional[asyncio.Task] = None
 notification_task: Optional[asyncio.Task] = None
 admin_bot_task: Optional[asyncio.Task] = None
+map_tile_cache: Dict[str, bytes] = {}
 
 
 class GameCreate(BaseModel):
@@ -378,7 +380,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.7", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.8", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -494,11 +496,43 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.7",
+        "version": "1.4.8",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
     }
+
+
+@app.get("/api/map-tiles/{zoom}/{tile_x}/{tile_y}.png", include_in_schema=False)
+async def map_tile(zoom: int, tile_x: int, tile_y: int):
+    """Same-origin OSM tile proxy for Telegram clients that block tile.openstreetmap.org."""
+    if not 0 <= zoom <= 19:
+        raise HTTPException(status_code=404, detail="Tile not found")
+    tile_count = 1 << zoom
+    if not 0 <= tile_x < tile_count or not 0 <= tile_y < tile_count:
+        raise HTTPException(status_code=404, detail="Tile not found")
+    cache_key = f"{zoom}/{tile_x}/{tile_y}"
+    content = map_tile_cache.get(cache_key)
+    if content is None:
+        def fetch_tile() -> bytes:
+            request = Request(
+                f"https://tile.openstreetmap.org/{cache_key}.png",
+                headers={"User-Agent": "ChessMeet/1.4.8 (Telegram Mini App; contact: @chessmeetbot)"},
+            )
+            with urlopen(request, timeout=12) as upstream:
+                return upstream.read(1_000_000)
+        try:
+            content = await asyncio.to_thread(fetch_tile)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Map provider unavailable") from exc
+        if len(map_tile_cache) >= 512:
+            map_tile_cache.pop(next(iter(map_tile_cache)))
+        map_tile_cache[cache_key] = content
+    return Response(
+        content=content,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"},
+    )
 
 
 @app.get("/api/config")
@@ -1157,7 +1191,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.7",
+        "version": "1.4.8",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),

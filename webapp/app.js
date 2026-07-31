@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.4.7';
+const APP_VERSION = '1.4.8';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -475,7 +475,7 @@ function topbar() {
     <header class="topbar-v7">
       ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.7</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.8</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1799,7 +1799,7 @@ function initFallbackMap(el, center, zoom, showMarker) {
       const img = document.createElement('img');
       img.alt = '';
       img.draggable = false;
-      img.src = `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`;
+      img.src = `/api/map-tiles/${zoom}/${wrappedX}/${y}.png`;
       img.addEventListener('error', () => {
         const label = el.querySelector('.fallback-map-label');
         if (label) label.textContent = 'Не удалось загрузить карту · проверьте доступ к OpenStreetMap';
