@@ -209,6 +209,12 @@ a { color: inherit; }
 .toggle-row small { display: block; color: var(--muted); margin-top: 4px; font-weight: 700; text-transform: none; letter-spacing: normal; }
 .toggle-row input { width: 22px; height: 22px; }
 .map-v7 { height: 320px; border-radius: 24px; overflow: hidden; background: #dce6d8; border: 1px solid var(--line); }
+.fallback-map { position: relative; cursor: crosshair; isolation: isolate; }
+.fallback-tiles, .fallback-tiles img { position: absolute; }
+.fallback-tiles { inset: 0; z-index: 0; background: #dce6d8; }
+.fallback-tiles img { width: 256px; height: 256px; max-width: none; user-select: none; }
+.fallback-map-label { position: absolute; z-index: 2; left: 10px; bottom: 9px; padding: 6px 9px; border-radius: 10px; background: rgba(255,255,255,.9); color: #323232; font-size: 11px; font-weight: 800; pointer-events: none; }
+.fallback-marker { position: absolute; z-index: 2; left: 50%; top: 50%; translate: -50% -58%; color: #d73535; font-size: 38px; line-height: 1; text-shadow: 0 2px 4px white; pointer-events: none; }
 .map-picked, .map-hint { padding: 12px 14px; border-radius: 18px; background: var(--green-soft); color: var(--green); font-weight: 900; font-size: 13px; }
 .map-hint { background: var(--soft); color: var(--muted); }
 .section-block { margin-bottom: 18px; }
@@ -1105,3 +1111,10 @@ a { color: inherit; }
 .rules-card {
   margin-top: 14px;
 }
+
+.screen-back { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; background: var(--soft); font-size: 24px; }
+.registration-shell { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: var(--bg); }
+.registration-card { width: min(100%, 480px); padding: 28px; border-radius: 28px; background: var(--card); box-shadow: var(--shadow); }
+.registration-card h1 { margin: 18px 0 8px; }
+.registration-card p { color: var(--muted); }
+.registration-card select, .registration-card input { width: 100%; margin-top: 16px; border: 0; border-radius: 18px; padding: 14px; background: var(--soft); font: inherit; }

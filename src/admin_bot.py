@@ -147,6 +147,7 @@ def main_menu() -> InlineKeyboardMarkup:
     return keyboard([
         [("📊 Статистика", "menu:stats"), ("👥 Пользователи", "menu:users")],
         [("🎮 Заявки", "menu:games"), ("🚨 Жалобы", "menu:reports")],
+        [("🏙 Новые города", "menu:city_requests")],
         [("📣 Рассылка", "menu:broadcast"), ("🗄 Backup", "menu:backup")],
         [("🩺 Система", "menu:system"), ("📜 Аудит", "menu:audit")],
     ])
@@ -410,6 +411,23 @@ async def games(callback: CallbackQuery):
         rows.append([(label[:55], f"game:{game['id']}")])
     rows.append([("← Главное меню", "menu:home")])
     await callback.message.edit_text("🎮 <b>Последние заявки</b>", reply_markup=keyboard(rows))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:city_requests")
+async def city_requests(callback: CallbackQuery):
+    data = await api.get("/api/admin/city-requests?limit=50", callback.from_user.id)
+    items = data.get("requests", [])
+    lines = ["🏙 <b>Запросы новых городов</b>", ""]
+    for item in items:
+        lines.append(
+            f"• <b>{html.escape(str(item.get('city_name') or '—'))}</b> — "
+            f"{html.escape(str(item.get('sender_name') or '—'))} "
+            f"(<code>{item.get('telegram_id')}</code>)"
+        )
+    if not items:
+        lines.append("Новых запросов пока нет.")
+    await callback.message.edit_text("\n".join(lines)[:3900], reply_markup=back_menu())
     await callback.answer()
 
 

@@ -45,7 +45,7 @@ WEBAPP_DIR = ROOT_DIR / "webapp"
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:8000").rstrip("/")
-BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "chessmeetbot").lstrip("@")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 BOT_MODE = os.getenv("BOT_MODE", "polling").lower()
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
@@ -184,6 +184,10 @@ class PreferencesUpdate(BaseModel):
         return canonical_city(value)
 
 
+class CityRequestCreate(BaseModel):
+    city_name: str = Field(min_length=2, max_length=80)
+
+
 class RatingCreate(BaseModel):
     score: int = Field(ge=1, le=5)
     comment: str = Field(default="", max_length=300)
@@ -265,6 +269,7 @@ async def notification_loop() -> None:
     """Background MVP scheduler: game reminders + daily puzzle streak reminders."""
     while True:
         try:
+            await db.complete_finished_confirmed_games(grace_hours=2)
             if bot:
                 for event in await db.due_referral_notifications():
                     language = str(event.get("inviter_language") or "ru").lower()
@@ -373,7 +378,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.4", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.6", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -400,9 +405,9 @@ async def security_headers(request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://telegram.org https://unpkg.com; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; "
-        "img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org; "
+        "script-src 'self' https://telegram.org; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; "
         "connect-src 'self' https://nominatim.openstreetmap.org; "
         "font-src 'self' data:; frame-ancestors https://web.telegram.org https://*.telegram.org"
     )
@@ -489,7 +494,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.4",
+        "version": "1.4.6",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -623,6 +628,23 @@ async def api_update_preferences(payload: PreferencesUpdate, user: Dict[str, Any
         notify_new_requests=payload.notify_new_requests,
     )
     return {"user": updated}
+
+
+@app.post("/api/me/city-request")
+async def api_city_request(payload: CityRequestCreate, user: Dict[str, Any] = Depends(current_user)):
+    sender_name = user.get("display_name") or user.get("first_name") or user.get("username") or str(user["telegram_id"])
+    try:
+        request = await db.create_city_request(int(user["telegram_id"]), payload.city_name, sender_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Введите название города") from exc
+    if bot:
+        admin_ids = {int(item) for item in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(";", ",").split(",") if item.strip().isdigit()}
+        for admin_id in admin_ids:
+            try:
+                await bot.send_message(admin_id, f"🏙 Новый город: <b>{request['city_name']}</b>\nОтправитель: <b>{sender_name}</b> · <code>{user['telegram_id']}</code>")
+            except Exception:
+                pass
+    return {"ok": True, "request": request, "user": await db.get_user(int(user["telegram_id"]))}
 
 @app.get("/api/badges")
 async def api_badges(user: Dict[str, Any] = Depends(current_user)):
@@ -1135,7 +1157,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.4",
+        "version": "1.4.6",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1290,6 +1312,12 @@ async def api_admin_games(limit: int = 100, _: None = Depends(require_admin)):
 async def api_admin_reports(limit: int = 100, _: None = Depends(require_admin)):
     limit = max(1, min(limit, 500))
     return {"reports": await _admin_table_rows("user_reports", order_by="created_at DESC", limit=limit)}
+
+
+@app.get("/api/admin/city-requests")
+async def api_admin_city_requests(limit: int = 100, _: None = Depends(require_admin)):
+    limit = max(1, min(limit, 500))
+    return {"requests": await _admin_table_rows("city_requests", order_by="created_at DESC", limit=limit)}
 
 
 @app.post("/api/admin/reports/{report_id}/resolve")

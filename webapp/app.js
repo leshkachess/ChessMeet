@@ -9,7 +9,7 @@ if (fallbackAuthToken) {
 if (tg) {
   tg.ready();
   tg.expand();
-  tg.BackButton?.onClick?.(() => navigate('home'));
+  tg.BackButton?.onClick?.(() => goBack());
 }
 
 const state = {
@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.4.4';
+const APP_VERSION = '1.4.6';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -423,10 +423,21 @@ function navigate(screen) {
   const url = new URL(location.href);
   url.searchParams.set('screen', screen);
   if (screen !== 'chat') url.searchParams.delete('game');
-  history.replaceState({}, '', url.toString());
+  history.pushState({ screen }, '', url.toString());
   render();
   hydrate();
 }
+
+function goBack() {
+  if (history.state?.screen && history.length > 1) history.back();
+  else if (state.screen !== 'home') navigate('home');
+}
+
+window.addEventListener('popstate', () => {
+  state.screen = new URLSearchParams(location.search).get('screen') || 'home';
+  render();
+  hydrate({ silent: true });
+});
 
 function afterRender() {
   if (state.screen === 'create') initCreateMap();
@@ -462,8 +473,9 @@ function topbar() {
   const city = selectedCity();
   return `
     <header class="topbar-v7">
+      ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.4</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.6</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1130,11 +1142,56 @@ function renderScreen() {
   }
 }
 
+function registrationCityScreen() {
+  return `<main class="registration-shell"><section class="registration-card">
+    <div class="brand-mark">♜</div>
+    <h1>Выберите ваш город</h1>
+    <p>Так мы сразу покажем партии и игроков рядом.</p>
+    <form id="registration-city-form">
+      <select name="profile_city">${cityOptions(state.config?.default_city || 'Минск')}<option value="__custom__">＋ Добавить свой город</option></select>
+      <div id="custom-city-fields" hidden><label>Название города<input name="custom_city" maxlength="80" autocomplete="address-level2" placeholder="Например, Псков" /></label></div>
+      <button class="big-primary" type="submit">Продолжить</button>
+    </form>
+  </section></main>`;
+}
+
+function bindRegistrationCity() {
+  const form = document.getElementById('registration-city-form');
+  if (!form) return;
+  const select = form.elements.profile_city;
+  const custom = document.getElementById('custom-city-fields');
+  select.addEventListener('change', () => { custom.hidden = select.value !== '__custom__'; });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+      let data;
+      if (select.value === '__custom__') {
+        const cityName = form.elements.custom_city.value.trim();
+        if (cityName.length < 2) throw new Error('Введите название города');
+        data = await api('/api/me/city-request', { method: 'POST', body: JSON.stringify({ city_name: cityName }) });
+        showToast('Спасибо! Заявка на город отправлена администратору');
+      } else {
+        data = await api('/api/me/preferences', { method: 'PATCH', body: JSON.stringify({ profile_city: select.value }) });
+      }
+      state.me = data.user;
+      writeCache('bootstrap', { config: state.config, user: state.me, games: state.games, my: state.my, daily_puzzle: state.dailyPuzzle });
+      render();
+      hydrate({ silent: true });
+    } catch (error) { showToast(error.message); }
+  });
+}
+
 function render() {
   applyTheme(currentThemeMode());
   // app.innerHTML replaces the map container. Leaflet must be detached first,
   // otherwise it remains bound to a stale DOM node and the next map is blank.
   destroyMapIfNeeded(true);
+  if (state.me && !state.me.onboarding_completed) {
+    app.innerHTML = registrationCityScreen();
+    bindRegistrationCity();
+    tg?.BackButton?.hide?.();
+    return;
+  }
   app.innerHTML = shell(renderScreen());
   if (tg?.BackButton) {
     if (state.screen === 'home') tg.BackButton.hide();
@@ -1146,6 +1203,7 @@ function render() {
 }
 
 function bindEvents() {
+  document.querySelectorAll('[data-back]').forEach(el => el.addEventListener('click', goBack));
   document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => navigate(el.dataset.nav)));
   document.querySelectorAll('[data-respond]').forEach(el => el.addEventListener('click', () => { state.responseGameId = Number(el.dataset.respond); render(); }));
   document.querySelectorAll('[data-join-waitlist]').forEach(el => el.addEventListener('click', () => changeWaitlist(el.dataset.joinWaitlist, true)));
@@ -1678,7 +1736,7 @@ function ensureCountdown() { if (!state.countdownInterval) state.countdownInterv
 
 function initCreateMap() {
   const el = document.getElementById('create-map');
-  if (!el || !window.L || state.map) return;
+  if (!el || state.map) return;
   const selectedLat = Number(state.selectedPlace?.latitude);
   const selectedLng = Number(state.selectedPlace?.longitude);
   const hasSelectedCoordinates = Number.isFinite(selectedLat) && Number.isFinite(selectedLng);
@@ -1689,6 +1747,10 @@ function initCreateMap() {
   const center = hasSelectedCoordinates
     ? [selectedLat, selectedLng]
     : (hasCityCoordinates ? [cityLat, cityLng] : [53.9, 27.5667]);
+  if (!window.L) {
+    initFallbackMap(el, center, hasSelectedCoordinates ? 16 : 12, hasSelectedCoordinates);
+    return;
+  }
   state.map = L.map(el, { zoomControl: false }).setView(center, hasSelectedCoordinates ? 16 : 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OSM' }).addTo(state.map);
   L.control.zoom({ position: 'bottomright' }).addTo(state.map);
@@ -1697,21 +1759,71 @@ function initCreateMap() {
     const { lat, lng } = e.latlng;
     addMarker(lat, lng);
     state.map.panTo([lat, lng]);
-    let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    let place = 'Точка на карте';
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(currentLanguage())}&lat=${lat}&lon=${lng}`);
-      if (!res.ok) throw new Error('Reverse geocoding failed');
-      const data = await res.json();
-      address = data.display_name || address;
-      place = data.name || data.address?.amenity || data.address?.road || place;
-    } catch (_) {}
-    const cityInput = document.querySelector('#create-form input[name="city"]');
-    const currentCityValue = cityInput?.value?.trim() || state.me?.profile_city || state.config?.default_city || 'Минск';
-    state.selectedPlace = { latitude: lat, longitude: lng, address, place, area: currentCityValue, map_url: `https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lng.toFixed(6)}#map=17/${lat.toFixed(6)}/${lng.toFixed(6)}` };
-    render();
+    await selectMapPoint(lat, lng);
   });
   setTimeout(() => state.map?.invalidateSize(), 200);
+}
+
+async function selectMapPoint(lat, lng) {
+  let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  let place = 'Точка на карте';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=${encodeURIComponent(currentLanguage())}&lat=${lat}&lon=${lng}`);
+    if (!res.ok) throw new Error('Reverse geocoding failed');
+    const data = await res.json();
+    address = data.display_name || address;
+    place = data.name || data.address?.amenity || data.address?.road || place;
+  } catch (_) {}
+  const cityInput = document.querySelector('#create-form input[name="city"]');
+  const currentCityValue = cityInput?.value?.trim() || state.me?.profile_city || state.config?.default_city || 'Минск';
+  state.selectedPlace = { latitude: lat, longitude: lng, address, place, area: currentCityValue, map_url: `https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lng.toFixed(6)}#map=17/${lat.toFixed(6)}/${lng.toFixed(6)}` };
+  render();
+}
+
+function initFallbackMap(el, center, zoom, showMarker) {
+  const tileSize = 256;
+  const scale = tileSize * (2 ** zoom);
+  const project = ([lat, lng]) => {
+    const safeLat = Math.max(-85.0511, Math.min(85.0511, lat));
+    const sin = Math.sin(safeLat * Math.PI / 180);
+    return [(lng + 180) / 360 * scale, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale];
+  };
+  const unproject = ([x, y]) => {
+    const lng = x / scale * 360 - 180;
+    const n = Math.PI - 2 * Math.PI * y / scale;
+    return [180 / Math.PI * Math.atan(Math.sinh(n)), lng];
+  };
+  const [cx, cy] = project(center);
+  const width = el.clientWidth || 360;
+  const height = el.clientHeight || 320;
+  el.classList.add('fallback-map');
+  el.innerHTML = '<div class="fallback-tiles"></div><div class="fallback-map-label">OpenStreetMap · нажмите, чтобы выбрать место</div>';
+  const layer = el.querySelector('.fallback-tiles');
+  const firstX = Math.floor((cx - width / 2) / tileSize);
+  const lastX = Math.floor((cx + width / 2) / tileSize);
+  const firstY = Math.floor((cy - height / 2) / tileSize);
+  const lastY = Math.floor((cy + height / 2) / tileSize);
+  const tileCount = 2 ** zoom;
+  for (let y = firstY; y <= lastY; y += 1) {
+    if (y < 0 || y >= tileCount) continue;
+    for (let x = firstX; x <= lastX; x += 1) {
+      const wrappedX = ((x % tileCount) + tileCount) % tileCount;
+      const img = document.createElement('img');
+      img.alt = '';
+      img.draggable = false;
+      img.src = `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`;
+      img.style.left = `${x * tileSize - cx + width / 2}px`;
+      img.style.top = `${y * tileSize - cy + height / 2}px`;
+      layer.appendChild(img);
+    }
+  }
+  if (showMarker) el.insertAdjacentHTML('beforeend', '<div class="fallback-marker">●</div>');
+  el.addEventListener('click', async event => {
+    const rect = el.getBoundingClientRect();
+    const point = unproject([cx + event.clientX - rect.left - rect.width / 2, cy + event.clientY - rect.top - rect.height / 2]);
+    await selectMapPoint(point[0], point[1]);
+  });
+  state.map = { remove() { el.innerHTML = ''; }, invalidateSize() {} };
 }
 function addMarker(lat, lng) {
   const latitude = Number(lat);

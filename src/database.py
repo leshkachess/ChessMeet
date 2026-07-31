@@ -9,7 +9,8 @@ import re
 import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.request import urlopen
-from .cities import canonical_city, city_today_key
+from .cities import canonical_city, city_info, city_today_key
+from zoneinfo import ZoneInfo
 
 import aiosqlite
 
@@ -133,7 +134,7 @@ def parse_iso(value: Optional[str]) -> Optional[datetime]:
     except Exception:
         return None
 
-def parse_local_game_datetime(date_label: Optional[str], time_label: Optional[str]) -> Optional[datetime]:
+def parse_local_game_datetime(date_label: Optional[str], time_label: Optional[str], city: Optional[str] = None) -> Optional[datetime]:
     """
     Parses user-facing game date/time as Minsk/Moscow local time (UTC+3).
     This avoids the old bug where local 22:30 was stored/read as 22:30 UTC.
@@ -150,7 +151,8 @@ def parse_local_game_datetime(date_label: Optional[str], time_label: Optional[st
         mm = int(time_match.group(2))
         if not (0 <= hh <= 23 and 0 <= mm <= 59):
             return None
-        return datetime(y, m, d, hh, mm, tzinfo=MOSCOW_TZ).astimezone(timezone.utc)
+        tz = ZoneInfo(city_info(city)["timezone"]) if city else MOSCOW_TZ
+        return datetime(y, m, d, hh, mm, tzinfo=tz).astimezone(timezone.utc)
     except Exception:
         return None
 
@@ -161,7 +163,7 @@ def effective_game_datetime(game: Dict[str, Any]) -> Optional[datetime]:
     first rebuild from user-facing date_label/time_label as UTC+3,
     then fallback to stored scheduled_at for older/flexible/invalid entries.
     """
-    local_dt = parse_local_game_datetime(game.get("date_label"), game.get("time_label"))
+    local_dt = parse_local_game_datetime(game.get("date_label"), game.get("time_label"), game.get("city"))
     if local_dt:
         return local_dt
     return parse_iso(game.get("scheduled_at"))
@@ -206,6 +208,7 @@ class Database:
                     notify_puzzle_streak INTEGER NOT NULL DEFAULT 1,
                     theme_mode TEXT DEFAULT 'light',
                     ui_language TEXT DEFAULT '',
+                    onboarding_completed INTEGER NOT NULL DEFAULT 0,
                     puzzle_reminder_sent_date TEXT DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -465,6 +468,19 @@ class Database:
                 )
                 """
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS city_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER NOT NULL,
+                    city_name TEXT NOT NULL,
+                    sender_name TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'new',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+                )
+                """
+            )
 
             # Lightweight migrations from older MVP versions.
             await self._add_column_if_missing(db, "users", "display_name", "TEXT")
@@ -485,6 +501,8 @@ class Database:
             await self._add_column_if_missing(db, "users", "theme_mode", "TEXT DEFAULT 'light'")
             await self._add_column_if_missing(db, "users", "ui_language", "TEXT DEFAULT ''")
             await self._add_column_if_missing(db, "users", "puzzle_reminder_sent_date", "TEXT DEFAULT ''")
+            # Preserve the flow for all existing accounts; only new registrations see city selection.
+            await self._add_column_if_missing(db, "users", "onboarding_completed", "INTEGER NOT NULL DEFAULT 1")
             await self._add_column_if_missing(db, "users", "invited_by", "INTEGER")
             await self._add_column_if_missing(db, "users", "invite_count", "INTEGER DEFAULT 0")
             await self._add_column_if_missing(db, "users", "referral_points", "INTEGER DEFAULT 0")
@@ -660,9 +678,9 @@ class Database:
                         photo_data_url, rating_avg, rating_count,
                         puzzle_streak, puzzle_best_streak, puzzle_solved_count, puzzle_last_solved_date,
                         notify_game_reminders, notify_new_requests, notify_puzzle_streak, puzzle_reminder_sent_date,
-                        created_at, updated_at
+                        onboarding_completed, created_at, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'Средний', '', ?, '', 0, 0, 0, 0, 0, '', 1, 0, 1, '', ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'Средний', '', ?, '', 0, 0, 0, 0, 0, '', 1, 0, 1, '', 0, ?, ?)
                     """,
                     (
                         telegram_id,
@@ -751,7 +769,7 @@ class Database:
             if language is not None:
                 updates.append("ui_language = ?"); values.append(language)
             if city is not None:
-                updates.extend(["profile_city = ?", "city = ?"]); values.extend([city, city])
+                updates.extend(["profile_city = ?", "city = ?", "onboarding_completed = 1"]); values.extend([city, city])
             if notify_new_requests is not None:
                 updates.append("notify_new_requests = ?"); values.append(1 if notify_new_requests else 0)
             updates.append("updated_at = ?"); values.append(now_iso())
@@ -762,6 +780,21 @@ class Database:
             if not rows:
                 raise ValueError("USER_NOT_FOUND")
             return self._normalize_user(dict(rows[0]))
+
+    async def create_city_request(self, telegram_id: int, city_name: str, sender_name: str) -> Dict[str, Any]:
+        city_name = city_name.strip()[:80]
+        if len(city_name) < 2:
+            raise ValueError("INVALID_CITY_NAME")
+        ts = now_iso()
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(
+                "INSERT INTO city_requests (telegram_id, city_name, sender_name, created_at) VALUES (?, ?, ?, ?)",
+                (telegram_id, city_name, sender_name.strip()[:120] or str(telegram_id), ts),
+            )
+            await db.execute("UPDATE users SET onboarding_completed = 1, updated_at = ? WHERE telegram_id = ?", (ts, telegram_id))
+            await db.commit()
+        return {"id": cursor.lastrowid, "telegram_id": telegram_id, "city_name": city_name,
+                "sender_name": sender_name, "status": "new", "created_at": ts}
 
     async def city_stats(self, city: str) -> Dict[str, Any]:
         city = canonical_city(city)
@@ -1648,6 +1681,23 @@ class Database:
                 (exclude_telegram_id, city, game_format, level, limit),
             )
             return [self._normalize_user(dict(row)) for row in rows]
+    async def complete_finished_confirmed_games(self, grace_hours: int = 2) -> int:
+        """Move elapsed meetings to history; no rows or user data are deleted."""
+        changed = 0
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall("SELECT * FROM game_requests WHERE status = 'confirmed'")
+            for row in rows:
+                scheduled = effective_game_datetime(dict(row))
+                if scheduled and now_dt() >= scheduled + timedelta(hours=grace_hours):
+                    cursor = await db.execute(
+                        "UPDATE game_requests SET status = 'completed', updated_at = ? WHERE id = ? AND status = 'confirmed'",
+                        (now_iso(), row["id"]),
+                    )
+                    changed += max(0, cursor.rowcount)
+            await db.commit()
+        return changed
+
     async def get_due_game_reminders(self) -> List[Dict[str, Any]]:
         now = now_dt()
         due: List[Dict[str, Any]] = []

@@ -140,7 +140,21 @@ def test_admin_audit_and_report_workflow_schema(tmp_path):
                 "PRAGMA table_info(user_reports)"
             )}
         assert "admin_audit_log" in tables
+        assert "city_requests" in tables
         assert {"status", "resolved_by", "resolved_at"} <= report_columns
+
+    asyncio.run(scenario())
+
+
+def test_new_user_city_onboarding_and_custom_request(tmp_path):
+    async def scenario():
+        db = Database(str(tmp_path / "onboarding.sqlite3"))
+        await db.init()
+        user = await db.upsert_user({"id": 501, "first_name": "Анна"})
+        assert not user["onboarding_completed"]
+        request = await db.create_city_request(501, "Псков", "Анна")
+        assert request["city_name"] == "Псков"
+        assert (await db.get_user(501))["onboarding_completed"]
 
     asyncio.run(scenario())
 
