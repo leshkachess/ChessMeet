@@ -28,6 +28,8 @@ jobs:
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           cat pytest-output.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+          message=$(python -c "import urllib.parse; print(urllib.parse.quote(open('pytest-output.txt').read()[-6000:]))")
+          echo "::error title=pytest output::$message"
       - name: Enforce test result
         if: steps.pytest.outcome != 'success'
         run: exit 1
