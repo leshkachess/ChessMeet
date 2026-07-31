@@ -48,7 +48,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.4.6';
+const APP_VERSION = '1.4.7';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
 let autoRefreshTimer = null;
@@ -475,7 +475,7 @@ function topbar() {
     <header class="topbar-v7">
       ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.6</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.4.7</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -1747,21 +1747,9 @@ function initCreateMap() {
   const center = hasSelectedCoordinates
     ? [selectedLat, selectedLng]
     : (hasCityCoordinates ? [cityLat, cityLng] : [53.9, 27.5667]);
-  if (!window.L) {
-    initFallbackMap(el, center, hasSelectedCoordinates ? 16 : 12, hasSelectedCoordinates);
-    return;
-  }
-  state.map = L.map(el, { zoomControl: false }).setView(center, hasSelectedCoordinates ? 16 : 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OSM' }).addTo(state.map);
-  L.control.zoom({ position: 'bottomright' }).addTo(state.map);
-  if (hasSelectedCoordinates) addMarker(selectedLat, selectedLng);
-  state.map.on('click', async e => {
-    const { lat, lng } = e.latlng;
-    addMarker(lat, lng);
-    state.map.panTo([lat, lng]);
-    await selectMapPoint(lat, lng);
-  });
-  setTimeout(() => state.map?.invalidateSize(), 200);
+  // Always use the built-in picker. Telegram Desktop/Android may retain a
+  // half-loaded global Leaflet object after blocking its stylesheet or CDN.
+  initFallbackMap(el, center, hasSelectedCoordinates ? 16 : 12, hasSelectedCoordinates);
 }
 
 async function selectMapPoint(lat, lng) {
@@ -1812,6 +1800,10 @@ function initFallbackMap(el, center, zoom, showMarker) {
       img.alt = '';
       img.draggable = false;
       img.src = `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`;
+      img.addEventListener('error', () => {
+        const label = el.querySelector('.fallback-map-label');
+        if (label) label.textContent = 'Не удалось загрузить карту · проверьте доступ к OpenStreetMap';
+      }, { once: true });
       img.style.left = `${x * tileSize - cx + width / 2}px`;
       img.style.top = `${y * tileSize - cy + height / 2}px`;
       layer.appendChild(img);

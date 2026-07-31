@@ -378,7 +378,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.4.6", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.4.7", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -494,7 +494,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.4.6",
+        "version": "1.4.7",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -1157,7 +1157,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.4.6",
+        "version": "1.4.7",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
