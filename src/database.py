@@ -202,6 +202,7 @@ class Database:
         self.path = path
         self.daily_puzzles = list(DAILY_PUZZLES)
         self.puzzle_source = "offline-fallback"
+        self.disabled_puzzle_ids: set[int] = set()
 
     async def init(self) -> None:
         self._load_or_fetch_daily_puzzles()
@@ -497,6 +498,52 @@ class Database:
             )
             await db.execute(
                 """
+                CREATE TABLE IF NOT EXISTS partner_places (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    city TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    address TEXT DEFAULT '',
+                    latitude REAL,
+                    longitude REAL,
+                    map_url TEXT DEFAULT '',
+                    logo_data_url TEXT DEFAULT '',
+                    hours TEXT DEFAULT '',
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    priority INTEGER NOT NULL DEFAULT 0,
+                    clicks_count INTEGER NOT NULL DEFAULT 0,
+                    games_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS map_diagnostics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER NOT NULL,
+                    platform TEXT DEFAULT '',
+                    user_agent TEXT DEFAULT '',
+                    app_version TEXT DEFAULT '',
+                    tile_status TEXT DEFAULT '',
+                    details TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS puzzle_overrides (
+                    puzzle_id INTEGER PRIMARY KEY,
+                    is_enabled INTEGER NOT NULL DEFAULT 1,
+                    admin_note TEXT DEFAULT '',
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS city_requests (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     telegram_id INTEGER NOT NULL,
@@ -585,6 +632,8 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_waitlist_game_position ON game_waitlist(game_id, position, created_at)",
                 "CREATE INDEX IF NOT EXISTS idx_referrals_inviter_status ON referral_events(inviter_telegram_id, status)",
                 "CREATE INDEX IF NOT EXISTS idx_user_reports_status_created ON user_reports(status, created_at)",
+                "CREATE INDEX IF NOT EXISTS idx_partner_places_city_active ON partner_places(city, is_active, priority)",
+                "CREATE INDEX IF NOT EXISTS idx_map_diagnostics_created ON map_diagnostics(created_at)",
             ]:
                 await db.execute(sql)
             await db.execute(
@@ -605,6 +654,7 @@ class Database:
 
             await db.commit()
 
+        await self.reload_puzzle_overrides()
         await self.expire_old_games()
         await self.normalize_all_puzzle_streaks()
         await self.refresh_all_user_ratings()
@@ -867,7 +917,83 @@ class Database:
                 """,
                 (city, max(1, min(int(limit), 50))),
             )
+            partner_rows = await db.execute_fetchall(
+                "SELECT *, name AS place, 1 AS is_partner FROM partner_places WHERE city = ? AND is_active = 1 "
+                "ORDER BY priority DESC, id DESC",
+                (city,),
+            )
+        partners = [dict(row) for row in partner_rows]
+        organic = [dict(row) for row in rows]
+        return (partners + organic)[:max(1, min(int(limit), 50))]
+
+    async def list_partner_places(self, include_inactive: bool = False) -> List[Dict[str, Any]]:
+        where = "" if include_inactive else "WHERE is_active = 1"
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                f"SELECT * FROM partner_places {where} ORDER BY priority DESC, id DESC"
+            )
         return [dict(row) for row in rows]
+
+    async def save_partner_place(self, data: Dict[str, Any], place_id: Optional[int] = None) -> Dict[str, Any]:
+        ts = now_iso()
+        values = (
+            canonical_city(data.get("city") or "Минск"), str(data.get("name") or "").strip()[:120],
+            str(data.get("description") or "").strip()[:500], str(data.get("address") or "").strip()[:200],
+            data.get("latitude"), data.get("longitude"), str(data.get("map_url") or "").strip()[:500],
+            validate_image_data_url(data.get("logo_data_url") or "", 2_000_000),
+            str(data.get("hours") or "").strip()[:120], 1 if data.get("is_active", True) else 0,
+            int(data.get("priority") or 0), ts,
+        )
+        if not values[1]:
+            raise ValueError("INVALID_PLACE_NAME")
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if place_id:
+                await db.execute(
+                    "UPDATE partner_places SET city=?, name=?, description=?, address=?, latitude=?, longitude=?, "
+                    "map_url=?, logo_data_url=?, hours=?, is_active=?, priority=?, updated_at=? WHERE id=?",
+                    (*values, place_id),
+                )
+                target_id = place_id
+            else:
+                cursor = await db.execute(
+                    "INSERT INTO partner_places (city,name,description,address,latitude,longitude,map_url,logo_data_url,hours,is_active,priority,created_at,updated_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (*values[:-1], ts, ts),
+                )
+                target_id = int(cursor.lastrowid)
+            await db.commit()
+            rows = await db.execute_fetchall("SELECT * FROM partner_places WHERE id=?", (target_id,))
+        if not rows:
+            raise ValueError("PLACE_NOT_FOUND")
+        return dict(rows[0])
+
+    async def track_partner_place(self, place_id: int, event: str) -> None:
+        column = "games_count" if event == "game_created" else "clicks_count"
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(f"UPDATE partner_places SET {column} = {column} + 1, updated_at=? WHERE id=?", (now_iso(), place_id))
+            await db.commit()
+
+    async def add_map_diagnostic(self, telegram_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        ts = now_iso()
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            recent = await db.execute_fetchall(
+                "SELECT COUNT(*) FROM map_diagnostics WHERE telegram_id=? AND created_at>=?",
+                (telegram_id, (now_dt() - timedelta(minutes=10)).isoformat()),
+            )
+            if recent and int(recent[0][0]) >= 5:
+                raise ValueError("MAP_DIAGNOSTIC_RATE_LIMIT")
+            cursor = await db.execute(
+                "INSERT INTO map_diagnostics (telegram_id,platform,user_agent,app_version,tile_status,details,created_at) VALUES (?,?,?,?,?,?,?)",
+                (telegram_id, str(data.get("platform") or "")[:80], str(data.get("user_agent") or "")[:500],
+                 str(data.get("app_version") or "")[:30], str(data.get("tile_status") or "")[:80],
+                 json.dumps(data.get("details") or {}, ensure_ascii=False)[:2000], ts),
+            )
+            await db.commit()
+            rows = await db.execute_fetchall("SELECT * FROM map_diagnostics WHERE id=?", (cursor.lastrowid,))
+        return dict(rows[0])
 
     async def track_event(self, telegram_id: int, event_name: str, event_data: str = "{}") -> None:
         async with aiosqlite.connect(self.path) as db:
@@ -2247,9 +2373,60 @@ class Database:
             index = d.toordinal() % len(self.daily_puzzles)
         except Exception:
             index = 0
-        puzzle = dict(self.daily_puzzles[index])
+        for offset in range(len(self.daily_puzzles)):
+            candidate = self.daily_puzzles[(index + offset) % len(self.daily_puzzles)]
+            if int(candidate["id"]) not in self.disabled_puzzle_ids:
+                puzzle = dict(candidate)
+                break
+        else:
+            puzzle = dict(self.daily_puzzles[index])
         puzzle["date"] = key
         return puzzle
+
+    async def reload_puzzle_overrides(self) -> None:
+        async with aiosqlite.connect(self.path) as db:
+            rows = await db.execute_fetchall("SELECT puzzle_id FROM puzzle_overrides WHERE is_enabled = 0")
+        self.disabled_puzzle_ids = {int(row[0]) for row in rows}
+
+    async def set_puzzle_enabled(self, puzzle_id: int, enabled: bool, note: str = "") -> None:
+        if puzzle_id not in {int(item["id"]) for item in self.daily_puzzles}:
+            raise ValueError("PUZZLE_NOT_FOUND")
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "INSERT INTO puzzle_overrides (puzzle_id,is_enabled,admin_note,updated_at) VALUES (?,?,?,?) "
+                "ON CONFLICT(puzzle_id) DO UPDATE SET is_enabled=excluded.is_enabled, admin_note=excluded.admin_note, updated_at=excluded.updated_at",
+                (puzzle_id, 1 if enabled else 0, note[:300], now_iso()),
+            )
+            await db.commit()
+        await self.reload_puzzle_overrides()
+
+    async def puzzle_statistics(self, puzzle_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        where = "WHERE puzzle_id = ?" if puzzle_id is not None else ""
+        params = (puzzle_id,) if puzzle_id is not None else ()
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                f"SELECT puzzle_id, COUNT(*) attempts, SUM(CASE WHEN solved=1 THEN 1 ELSE 0 END) solved_users, "
+                f"ROUND(AVG(attempt_count),2) average_attempts FROM daily_puzzle_attempts {where} GROUP BY puzzle_id",
+                params,
+            )
+        return [dict(row) for row in rows]
+
+    async def puzzle_archive(self, telegram_id: int, days: int = 14) -> List[Dict[str, Any]]:
+        today = self._moscow_today()
+        result = []
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await db.execute_fetchall(
+                "SELECT * FROM daily_puzzle_attempts WHERE telegram_id=? ORDER BY puzzle_date DESC LIMIT ?",
+                (telegram_id, max(1, min(days, 60))),
+            )
+        attempts = {row["puzzle_date"]: dict(row) for row in rows}
+        for offset in range(max(1, min(days, 60))):
+            key = (today - timedelta(days=offset)).isoformat()
+            puzzle = self._daily_puzzle_for_date(key)
+            result.append({"date": key, "puzzle_id": puzzle["id"], "title": puzzle.get("title"), "attempt": attempts.get(key)})
+        return result
 
     async def get_daily_puzzle(self, telegram_id: int, puzzle_date: Optional[str] = None) -> Dict[str, Any]:
         key = puzzle_date or self._today_key()

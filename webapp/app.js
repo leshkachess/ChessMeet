@@ -23,10 +23,14 @@ const state = {
   activeChatGameId: initialParams.get('game') || null,
   chat: { game: null, opponent: null, messages: [] },
   dailyPuzzle: null,
+  puzzleArchive: [],
+  puzzleHint: '',
+  puzzleSolution: null,
   profilePhotoDraft: '',
   publicProfile: null,
   selectedPlace: null,
   map: null,
+  mapDiagnosticSent: false,
   marker: null,
   puzzleSelectedSquare: null,
   puzzleLastMove: null,
@@ -50,7 +54,7 @@ const state = {
 const app = document.getElementById('app');
 
 
-const APP_VERSION = '1.5.2';
+const APP_VERSION = '1.6.0';
 const OFFICIAL_BOT_USERNAME = 'chessmeetbot';
 const CACHE_PREFIX = 'chessmeet_v0121_';
 const AUTO_REFRESH_MS = 15000;
@@ -357,7 +361,7 @@ async function hydrate({ silent = false } = {}) {
   const tasks = [];
   if (['home', 'games'].includes(state.screen)) tasks.push(loadGames());
   if (['home', 'games'].includes(state.screen)) tasks.push(loadCityStats());
-  if (state.screen === 'home') tasks.push(loadCityPlaces());
+  if (['home', 'create'].includes(state.screen)) tasks.push(loadCityPlaces());
   if (['home', 'my'].includes(state.screen)) tasks.push(loadMy());
   if (['home', 'profile', 'puzzle'].includes(state.screen)) tasks.push(loadDailyPuzzle());
   if (state.screen === 'chat' && state.activeChatGameId) tasks.push(loadChat(state.activeChatGameId));
@@ -483,7 +487,7 @@ function topbar() {
     <header class="topbar-v7">
       ${state.screen !== 'home' ? '<button class="screen-back" type="button" data-back aria-label="Назад">←</button>' : ''}
       <div>
-        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.5.2</span></div>
+        <div class="brand-row"><span class="brand-mark">♜</span><span>ChessMeet</span><span class="version-pill">v1.6.0</span></div>
         <h1>${title}</h1>
         <p>${city} · офлайн-шахматы в Telegram</p>
         <label class="city-filter"><span>Город</span><select id="city-filter-select">${cityOptions(city)}</select></label>
@@ -566,7 +570,7 @@ function homeScreen() {
 
 function placeCard(place) {
   const url = safeMapUrl(place.map_url);
-  return `<article class="place-card"><span>♟</span><strong>${h(place.place)}</strong><small>${h(place.address || selectedCity())}</small><div>${place.rating_count ? `${Number(place.rating_avg || 0).toFixed(1)} ★` : 'Новое место'} · ${Number(place.games_count || 0)} партий</div>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">На карте</a>` : ''}</article>`;
+  return `<article class="place-card"><span>♟</span><strong>${h(place.place || place.name)}</strong><small>${h(place.address || selectedCity())}</small><div>${place.is_partner ? 'Партнёр ChessMeet' : (place.rating_count ? `${Number(place.rating_avg || 0).toFixed(1)} ★` : 'Новое место')} · ${Number(place.games_count || 0)} партий</div>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">На карте</a>` : ''}</article>`;
 }
 
 function responsesManagerModal() {
@@ -764,6 +768,7 @@ function createPayloadFromForm(form) {
     date_label: date, time_label: time, scheduled_at: date && time ? `${date}T${time}:00Z` : null,
     is_flexible: fd.get('is_flexible') === 'on', time_window_start: fd.get('time_window_start') || '', time_window_end: fd.get('time_window_end') || '',
     game_format: fd.get('game_format'), level: fd.get('level'), has_board: fd.get('has_board') === 'on', comment: fd.get('comment') || '',
+    partner_place_id: state.selectedPlace?.partner_place_id || null,
   };
 }
 
@@ -808,8 +813,10 @@ function createScreen() {
   if (!state.selectedPlace && (defaults.latitude || defaults.longitude || defaults.map_url)) {
     state.selectedPlace = { latitude: defaults.latitude, longitude: defaults.longitude, map_url: defaults.map_url, address: defaults.address, place: defaults.place, area: defaults.area };
   }
+  const partners = (state.cityPlaces || []).filter(place => place.is_partner && place.city === (defaults.city || selectedCity()));
   return `
     ${!editing && draft && !state.draftNoticeHidden ? `<section class="draft-card"><div><b>Есть черновик заявки</b><small>Форма восстановлена автоматически.</small></div><button class="ghost-action" data-clear-draft>Очистить</button></section>` : ''}
+    ${!editing && partners.length ? `<section><div class="section-head-v7"><div><h3>Рекомендуем сыграть здесь</h3><p>Проверенные партнёры ChessMeet</p></div></div><div class="partner-place-list">${partners.map(partnerPlaceCard).join('')}</div></section>` : ''}
     <form id="create-form" class="flow-form" data-editing-id="${editing ? editing.id : ''}">
       <section class="flow-card"><div class="step-label">1 · Когда</div>
         <div class="two-cols"><label>Дата<input type="date" name="date_label" value="${h(defaults.date_label)}" required /></label><label>Время<input type="time" name="time_label" value="${h(defaults.time_label)}" required /></label></div>
@@ -834,6 +841,14 @@ function createScreen() {
       </section>
     </form>
   `;
+}
+
+function partnerPlaceCard(place) {
+  return `<article class="partner-place-card">
+    ${place.logo_data_url ? `<img src="${h(place.logo_data_url)}" alt="${h(place.name)}" />` : '<span class="partner-place-icon">♟</span>'}
+    <div><small>Партнёр ChessMeet</small><h3>${h(place.name)}</h3><p>${h(place.description || place.address)}</p><div class="partner-place-meta">${h(place.hours || '')}</div></div>
+    <button type="button" class="big-primary" data-select-partner-place="${place.id}">Выбрать место</button>
+  </article>`;
 }
 
 function myScreen() {
@@ -977,10 +992,14 @@ function puzzleScreen() {
     <section class="puzzle-board-card">
       ${renderPuzzleBoard(p.fen || '')}
       <div class="puzzle-feedback ${solved ? 'ok' : ''}">${solved ? `Верно${p.solution_san ? `: ${h(p.solution_san)}` : ''}. Серия ${stats.streak || 0} 🔥` : 'Выбери фигуру, затем клетку назначения.'}</div>
+      ${state.puzzleHint ? `<div class="note-strip">💡 ${h(state.puzzleHint)}</div>` : ''}
+      ${state.puzzleSolution ? `<div class="note-strip">Решение: <b>${h(state.puzzleSolution.solution_san || '')}</b><br>${h(state.puzzleSolution.explanation || '')}<small>Просмотр решения не увеличивает серию.</small></div>` : ''}
+      ${!solved ? `<div class="game-actions wrap"><button class="ghost-action" data-puzzle-hint>Подсказка</button><button class="ghost-action" data-puzzle-solution>Показать решение</button></div>` : ''}
     </section>
     <section class="metric-grid puzzle-stats">
       ${metric('Серия', `${stats.streak || 0} 🔥`)}${metric('Рекорд', stats.best_streak || 0)}${metric('Всего решено', stats.solved_count || 0)}${metric('Сегодня', p.date || '—')}
     </section>
+    <section class="flow-card"><div class="step-label">Последние задачи</div><button class="ghost-wide" data-load-puzzle-archive>${state.puzzleArchive.length ? 'Обновить архив' : 'Показать архив'}</button>${state.puzzleArchive.length ? `<div class="puzzle-archive">${state.puzzleArchive.map(item => `<div><span>${h(item.date)} · ${h(item.title)}</span><b>${item.attempt?.solved ? '✓ Решено' : item.attempt ? `${item.attempt.attempt_count} попыток` : 'Не открывалась'}</b></div>`).join('')}</div>` : ''}</section>
   `;
 }
 
@@ -1043,6 +1062,7 @@ function profileScreen() {
         <button type="button" data-set-language="en" class="${currentLanguage() === 'en' ? 'active' : ''}">EN</button>
       </div>
     </section>
+    <section class="flow-card"><div class="step-label">Диагностика карты</div><p>Проверяет доступ к тайлам и отправляет технический отчёт администратору.</p><button class="ghost-wide" data-map-diagnostic>Проверить карту</button></section>
     <section class="flow-card invite-card">
       <div class="step-label">Реферальная программа</div>
       <div class="referral-tier"><span>Твой уровень</span><strong>${h(referral.tier || 'Новичок')}</strong></div>
@@ -1253,6 +1273,11 @@ function bindEvents() {
   document.querySelectorAll('[data-close-onboarding]').forEach(el => el.addEventListener('click', () => { localStorage.setItem('chessmeet_onboarding_seen', '1'); render(); }));
   document.querySelectorAll('[data-clear-draft]').forEach(el => el.addEventListener('click', () => { clearCreateDraft(); state.draftNoticeHidden = true; render(); }));
   document.querySelectorAll('[data-puzzle-square]').forEach(el => el.addEventListener('click', () => handlePuzzleClick(el.dataset.puzzleSquare, el.dataset.puzzlePiece || '')));
+  document.querySelectorAll('[data-select-partner-place]').forEach(el => el.addEventListener('click', () => selectPartnerPlace(el.dataset.selectPartnerPlace)));
+  document.querySelectorAll('[data-puzzle-hint]').forEach(el => el.addEventListener('click', loadPuzzleHint));
+  document.querySelectorAll('[data-puzzle-solution]').forEach(el => el.addEventListener('click', revealPuzzleSolution));
+  document.querySelectorAll('[data-load-puzzle-archive]').forEach(el => el.addEventListener('click', loadPuzzleArchive));
+  document.querySelectorAll('[data-map-diagnostic]').forEach(el => el.addEventListener('click', runMapDiagnostic));
   document.querySelectorAll('[data-filter-format]').forEach(el => el.addEventListener('click', () => { state.gamesFormat = el.dataset.filterFormat; render(); }));
   const search = document.getElementById('games-search');
   if (search) search.addEventListener('input', e => { state.gamesQuery = e.target.value; render(); });
@@ -1711,6 +1736,40 @@ function handlePuzzleClick(square, piece) {
 
 async function answerPuzzle(move) { try { const data = await api('/api/daily-puzzle/answer', { method: 'POST', body: JSON.stringify({ selected_move: move }) }); state.dailyPuzzle = data; const me = await api('/api/me'); state.me = me.user; showToast(data.correct ? `Верно: ${data.solution_san || move}` : 'Пока неверно'); if (!data.correct) state.puzzleLastMove = null; render(); } catch (e) { showToast(e.message); } }
 
+async function selectPartnerPlace(id) {
+  const place = (state.cityPlaces || []).find(item => Number(item.id) === Number(id) && item.is_partner);
+  if (!place) return;
+  state.selectedPlace = { place: place.name, area: place.city, address: place.address, latitude: place.latitude, longitude: place.longitude, map_url: place.map_url, partner_place_id: place.id };
+  api(`/api/partner-places/${place.id}/track`, { method: 'POST' }).catch(() => {});
+  render();
+  showToast(`${place.name}: место выбрано`);
+}
+
+async function loadPuzzleHint() { try { const data = await api('/api/daily-puzzle/hint'); state.puzzleHint = data.hint || ''; render(); } catch (e) { showToast(e.message); } }
+async function revealPuzzleSolution() { try { state.puzzleSolution = await api('/api/daily-puzzle/solution'); render(); } catch (e) { showToast(e.message); } }
+async function loadPuzzleArchive() { try { const data = await api('/api/daily-puzzle/archive?days=14'); state.puzzleArchive = data.items || []; render(); } catch (e) { showToast(e.message); } }
+
+async function sendMapDiagnostic(tileStatus, details = {}) {
+  if (tileStatus === 'tile_error' && state.mapDiagnosticSent) return { report_id: '—' };
+  if (tileStatus === 'tile_error') state.mapDiagnosticSent = true;
+  return api('/api/map-diagnostics', { method: 'POST', body: JSON.stringify({
+    platform: tg?.platform || navigator.platform || 'unknown', user_agent: navigator.userAgent,
+    app_version: APP_VERSION, tile_status: tileStatus, details,
+  }) });
+}
+
+async function runMapDiagnostic() {
+  const started = performance.now();
+  let status = 'ok', httpStatus = 0;
+  try {
+    const response = await fetch('/api/map-tiles/0/0/0.png', { cache: 'no-store' });
+    httpStatus = response.status;
+    if (!response.ok || !(response.headers.get('content-type') || '').includes('image/png')) status = 'invalid_response';
+  } catch (_) { status = 'network_error'; }
+  const report = await sendMapDiagnostic(status, { http_status: httpStatus, duration_ms: Math.round(performance.now() - started), online: navigator.onLine, screen: `${screen.width}x${screen.height}` });
+  showToast(status === 'ok' ? `Карта работает · отчёт #${report.report_id}` : `Ошибка карты отправлена · отчёт #${report.report_id}`);
+}
+
 function nextCityMidnight() {
   const now = new Date();
   const timeZone = selectedCityInfo()?.timezone || 'Europe/Minsk';
@@ -1808,6 +1867,7 @@ function initFallbackMap(el, center, zoom, showMarker) {
       img.addEventListener('error', () => {
         const label = el.querySelector('.fallback-map-label');
         if (label) label.textContent = 'Не удалось загрузить карту · проверьте доступ к OpenStreetMap';
+        sendMapDiagnostic('tile_error', { zoom, x: wrappedX, y }).catch(() => {});
       }, { once: true });
       img.style.left = `${x * tileSize - cx + width / 2}px`;
       img.style.top = `${y * tileSize - cy + height / 2}px`;

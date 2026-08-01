@@ -292,6 +292,44 @@ def test_referral_start_argument_is_strict():
     assert parse_referral_arg("ref_bad") is None
 
 
+def test_partner_places_map_diagnostics_and_puzzle_controls_are_additive(tmp_path):
+    async def scenario():
+        database = Database(str(tmp_path / "managed_features.sqlite3"))
+        await database.init()
+        city = "\u041c\u0438\u043d\u0441\u043a"
+        await database.upsert_user({"id": 700, "first_name": "Tester"}, default_city=city)
+        partner = await database.save_partner_place({
+            "city": city, "name": "Test cafe", "description": "Chess-friendly place",
+            "address": "Test street 1", "latitude": 53.9, "longitude": 27.56,
+            "map_url": "https://www.openstreetmap.org/?mlat=53.9&mlon=27.56",
+            "is_active": True, "priority": 10,
+        })
+        places = await database.popular_places(city)
+        assert places[0]["id"] == partner["id"]
+        assert places[0]["place"] == "Test cafe"
+        assert places[0]["is_partner"] == 1
+        await database.track_partner_place(partner["id"], "click")
+        await database.track_partner_place(partner["id"], "game_created")
+        tracked = (await database.list_partner_places(include_inactive=True))[0]
+        assert tracked["clicks_count"] == 1
+        assert tracked["games_count"] == 1
+        report = await database.add_map_diagnostic(700, {
+            "platform": "Win32", "user_agent": "pytest", "app_version": "test",
+            "tile_status": "tile_error", "details": {"online": True},
+        })
+        assert report["telegram_id"] == 700
+        assert report["tile_status"] == "tile_error"
+        key = "2026-08-01"
+        original = database._daily_puzzle_for_date(key)
+        await database.set_puzzle_enabled(int(original["id"]), False, "reported")
+        assert database._daily_puzzle_for_date(key)["id"] != original["id"]
+        archive = await database.puzzle_archive(700, days=3)
+        assert len(archive) == 3
+        assert all("puzzle_id" in item for item in archive)
+
+    asyncio.run(scenario())
+
+
 def test_admin_table_cells_are_compact_and_single_line():
     assert compact_cell("Very long display name", 10) == "Very long…"
     assert compact_cell("A\nB", 10) == "A B"

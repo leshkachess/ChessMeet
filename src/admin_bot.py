@@ -147,7 +147,8 @@ def main_menu() -> InlineKeyboardMarkup:
     return keyboard([
         [("📊 Статистика", "menu:stats"), ("👥 Пользователи", "menu:users")],
         [("🎮 Заявки", "menu:games"), ("🚨 Жалобы", "menu:reports")],
-        [("🏙 Новые города", "menu:city_requests")],
+        [("🏙 Новые города", "menu:city_requests"), ("📍 Партнёры", "menu:partners")],
+        [("🗺 Карты", "menu:map_reports"), ("🧩 Задачи", "menu:puzzles")],
         [("📣 Рассылка", "menu:broadcast"), ("🗄 Backup", "menu:backup")],
         [("🩺 Система", "menu:system"), ("📜 Аудит", "menu:audit")],
     ])
@@ -411,6 +412,49 @@ async def games(callback: CallbackQuery):
         rows.append([(label[:55], f"game:{game['id']}")])
     rows.append([("← Главное меню", "menu:home")])
     await callback.message.edit_text("🎮 <b>Последние заявки</b>", reply_markup=keyboard(rows))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:partners")
+async def partner_places(callback: CallbackQuery):
+    data = await api.get("/api/admin/partner-places", callback.from_user.id)
+    places = data.get("places", [])
+    lines = ["📍 <b>Партнёрские места</b>", ""]
+    for place in places[:20]:
+        state = "✓" if place.get("is_active") else "⏸"
+        lines.append(f"{state} #{place['id']} {html.escape(place.get('name') or '—')} · {html.escape(place.get('city') or '—')} · выборов {place.get('clicks_count', 0)} · партий {place.get('games_count', 0)}")
+    if not places:
+        lines.append("Партнёрских мест пока нет. Добавить их можно через защищённый Admin API.")
+    await callback.message.edit_text("\n".join(lines), reply_markup=back_menu())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:map_reports")
+async def map_reports(callback: CallbackQuery):
+    data = await api.get("/api/admin/map-diagnostics?limit=20", callback.from_user.id)
+    reports = data.get("reports", [])
+    lines = ["🗺 <b>Диагностика карт</b>", ""]
+    for item in reports[:15]:
+        lines.append(f"#{item['id']} · <code>{item.get('telegram_id')}</code> · {html.escape(item.get('platform') or 'unknown')} · {html.escape(item.get('tile_status') or 'unknown')} · v{html.escape(item.get('app_version') or '—')}")
+    if not reports:
+        lines.append("Отчётов пока нет.")
+    await callback.message.edit_text("\n".join(lines), reply_markup=back_menu())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:puzzles")
+async def puzzles(callback: CallbackQuery):
+    data = await api.get("/api/admin/puzzles", callback.from_user.id)
+    stats = data.get("statistics", [])
+    disabled = data.get("disabled_ids", [])
+    lines = ["🧩 <b>Задачи дня</b>", "", f"В наборе: <b>{data.get('count', 0)}</b>", f"Отключено: <b>{len(disabled)}</b>"]
+    if stats:
+        lines.extend(["", "Последняя статистика:"])
+        for item in stats[-10:]:
+            attempts = int(item.get('attempts') or 0); solved = int(item.get('solved_users') or 0)
+            rate = round(solved / attempts * 100) if attempts else 0
+            lines.append(f"#{item.get('puzzle_id')} · {rate}% решили · ср. {item.get('average_attempts') or 0} попыток")
+    await callback.message.edit_text("\n".join(lines), reply_markup=back_menu())
     await callback.answer()
 
 

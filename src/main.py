@@ -119,6 +119,7 @@ class GameCreate(BaseModel):
     level: str = Field(min_length=2, max_length=80)
     has_board: bool = True
     comment: str = Field(default="", max_length=500)
+    partner_place_id: Optional[int] = Field(default=None, ge=1)
 
     @field_validator("city")
     @classmethod
@@ -243,6 +244,51 @@ class GamePhotoCreate(BaseModel):
 
 class DailyPuzzleAnswer(BaseModel):
     selected_move: str = Field(min_length=4, max_length=5)
+
+
+class MapDiagnosticCreate(BaseModel):
+    platform: str = Field(default="", max_length=80)
+    user_agent: str = Field(default="", max_length=500)
+    app_version: str = Field(default="", max_length=30)
+    tile_status: str = Field(default="unknown", max_length=80)
+    details: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PartnerPlaceUpsert(BaseModel):
+    city: str = Field(default="Минск", max_length=80)
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=500)
+    address: str = Field(default="", max_length=200)
+    latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    longitude: Optional[float] = Field(default=None, ge=-180, le=180)
+    map_url: str = Field(default="", max_length=500)
+    logo_data_url: str = Field(default="", max_length=2_000_000)
+    hours: str = Field(default="", max_length=120)
+    is_active: bool = True
+    priority: int = Field(default=0, ge=-1000, le=1000)
+
+    @field_validator("city")
+    @classmethod
+    def validate_partner_city(cls, value: str) -> str:
+        if not is_supported_city(value):
+            raise ValueError("unsupported city")
+        return canonical_city(value)
+
+    @field_validator("map_url")
+    @classmethod
+    def validate_partner_map_url(cls, value: str) -> str:
+        clean = (value or "").strip()
+        if not clean:
+            return ""
+        parsed = urlsplit(clean)
+        if parsed.scheme != "https" or parsed.hostname not in {"openstreetmap.org", "www.openstreetmap.org"}:
+            raise ValueError("map_url must be an HTTPS OpenStreetMap URL")
+        return clean
+
+
+class PuzzleOverrideUpdate(BaseModel):
+    enabled: bool
+    note: str = Field(default="", max_length=300)
 
 
 class BadgeVisibilityUpdate(BaseModel):
@@ -384,7 +430,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="ChessMeet", version="1.5.2", lifespan=lifespan)
+app = FastAPI(title="ChessMeet", version="1.6.0", lifespan=lifespan)
 
 webapp_origin = urlsplit(WEBAPP_URL)
 allowed_origins = []
@@ -504,7 +550,7 @@ async def health():
         "bot_mode": BOT_MODE,
         "webapp_url": WEBAPP_URL,
         "default_city": DEFAULT_CITY,
-        "version": "1.5.2",
+        "version": "1.6.0",
         "railway_ready": True,
         "database_persistent": bool(volume_mount) if os.getenv("RAILWAY_SERVICE_ID") else True,
         "database_volume_attached": bool(volume_mount),
@@ -525,7 +571,7 @@ async def map_tile(zoom: int, tile_x: int, tile_y: int):
         def fetch_tile() -> bytes:
             request = Request(
                 f"https://tile.openstreetmap.org/{cache_key}.png",
-                headers={"User-Agent": "ChessMeet/1.5.2 (Telegram Mini App; contact: @chessmeetbot)"},
+                headers={"User-Agent": "ChessMeet/1.6.0 (Telegram Mini App; contact: @chessmeetbot)"},
             )
             with urlopen(request, timeout=12) as upstream:
                 return upstream.read(1_000_000)
@@ -737,6 +783,69 @@ async def api_answer_daily_puzzle(payload: DailyPuzzleAnswer, user: Dict[str, An
     return result
 
 
+@app.get("/api/daily-puzzle/archive")
+async def api_daily_puzzle_archive(days: int = 14, user: Dict[str, Any] = Depends(current_user)):
+    return {"items": await db.puzzle_archive(int(user["telegram_id"]), days)}
+
+
+@app.get("/api/daily-puzzle/hint")
+async def api_daily_puzzle_hint(user: Dict[str, Any] = Depends(current_user)):
+    key = city_today_key(user.get("profile_city") or DEFAULT_CITY)
+    current = await db.get_daily_puzzle(int(user["telegram_id"]), key)
+    attempt_count = int((current.get("attempt") or {}).get("attempt_count") or 0)
+    if attempt_count < 2 and not current.get("solved"):
+        raise HTTPException(status_code=400, detail="Подсказка откроется после двух попыток")
+    puzzle = db._daily_puzzle_for_date(key)
+    move = str(puzzle.get("solution_move") or "")
+    piece = "фигуру"
+    try:
+        import chess
+        board = chess.Board(puzzle["fen"])
+        names = {1: "пешку", 2: "коня", 3: "слона", 4: "ладью", 5: "ферзя", 6: "короля"}
+        piece = names.get(board.piece_type_at(chess.parse_square(move[:2])), piece)
+    except Exception:
+        pass
+    return {"hint": f"Ищи матующий ход: обрати внимание на {piece} на поле {move[:2].upper()}."}
+
+
+@app.get("/api/daily-puzzle/solution")
+async def api_daily_puzzle_solution(user: Dict[str, Any] = Depends(current_user)):
+    key = city_today_key(user.get("profile_city") or DEFAULT_CITY)
+    puzzle = db._daily_puzzle_for_date(key)
+    return {"solution_move": puzzle.get("solution_move"), "solution_san": puzzle.get("solution_san"),
+            "explanation": puzzle.get("explanation"), "streak_awarded": False}
+
+
+@app.post("/api/map-diagnostics")
+async def api_map_diagnostics(payload: MapDiagnosticCreate, user: Dict[str, Any] = Depends(current_user)):
+    try:
+        report = await db.add_map_diagnostic(int(user["telegram_id"]), payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=429, detail="Слишком много диагностических отчётов") from exc
+    if bot and payload.tile_status != "ok":
+        admin_ids = {int(item) for item in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(";", ",").split(",") if item.strip().isdigit()}
+        sender = user.get("display_name") or user.get("first_name") or user.get("username") or str(user["telegram_id"])
+        for admin_id in admin_ids:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    f"🗺 Ошибка карты #{report['id']}\n"
+                    f"Игрок: <b>{html.escape(str(sender))}</b> · <code>{user['telegram_id']}</code>\n"
+                    f"Платформа: {html.escape(payload.platform or 'unknown')}\n"
+                    f"Статус: <code>{html.escape(payload.tile_status)}</code>",
+                )
+            except Exception:
+                pass
+    return {"ok": True, "report_id": report["id"]}
+
+
+@app.post("/api/partner-places/{place_id}/track")
+async def api_track_partner_place(place_id: int, user: Dict[str, Any] = Depends(current_user)):
+    await db.track_partner_place(place_id, "click")
+    await db.track_event(int(user["telegram_id"]), "partner_place_selected", json.dumps({"place_id": place_id}))
+    return {"ok": True}
+
+
 @app.get("/api/games")
 async def api_games(city: str = DEFAULT_CITY, user: Dict[str, Any] = Depends(current_user)):
     if not is_supported_city(city):
@@ -768,6 +877,8 @@ async def api_create_game(payload: GameCreate, user: Dict[str, Any] = Depends(cu
     data["city"] = data.get("city") or DEFAULT_CITY
     try:
         game = await db.create_game(int(user["telegram_id"]), data, default_city=DEFAULT_CITY)
+        if payload.partner_place_id:
+            await db.track_partner_place(payload.partner_place_id, "game_created")
     except ValueError as exc:
         mapping = {
             "TOO_MANY_OPEN_GAMES": (400, "Достигнут лимит открытых заявок. Реферальные уровни повышают этот лимит."),
@@ -1172,7 +1283,7 @@ async def _admin_table_rows(table: str, columns: str = "*", order_by: str = "id 
     allowed_tables = {
         "users", "game_requests", "responses", "ratings", "user_reports", "game_photos",
         "chat_messages", "badges", "user_badges", "user_blocks", "daily_puzzle_attempts",
-        "admin_audit_log", "city_requests",
+        "admin_audit_log", "city_requests", "partner_places", "map_diagnostics", "puzzle_overrides",
     }
     if table not in allowed_tables:
         raise HTTPException(status_code=400, detail="Unsupported table")
@@ -1210,7 +1321,7 @@ async def api_admin_health(_: None = Depends(require_admin)):
     reset_count = await db.normalize_all_puzzle_streaks()
     return {
         "ok": True,
-        "version": "1.5.2",
+        "version": "1.6.0",
         "webapp_url": WEBAPP_URL,
         "database_path": DATABASE_PATH,
         "database_exists": Path(DATABASE_PATH).exists(),
@@ -1400,7 +1511,45 @@ async def api_admin_audit(limit: int = 100, _: None = Depends(require_admin)):
 
 @app.get("/api/admin/puzzles")
 async def api_admin_puzzles(_: None = Depends(require_admin)):
-    return {"count": len(db.daily_puzzles), "source": db.puzzle_source, "puzzles": db.daily_puzzles}
+    return {"count": len(db.daily_puzzles), "source": db.puzzle_source, "puzzles": db.daily_puzzles,
+            "disabled_ids": sorted(db.disabled_puzzle_ids), "statistics": await db.puzzle_statistics()}
+
+
+@app.patch("/api/admin/puzzles/{puzzle_id}")
+async def api_admin_puzzle_override(puzzle_id: int, payload: PuzzleOverrideUpdate, x_admin_actor: str = Header(default=""), _: None = Depends(require_admin)):
+    try:
+        await db.set_puzzle_enabled(puzzle_id, payload.enabled, payload.note)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Puzzle not found") from exc
+    await record_admin_action(x_admin_actor, "puzzle_enabled" if payload.enabled else "puzzle_disabled", "puzzle", puzzle_id, {"note": payload.note})
+    return {"ok": True, "puzzle_id": puzzle_id, "enabled": payload.enabled}
+
+
+@app.get("/api/admin/partner-places")
+async def api_admin_partner_places(_: None = Depends(require_admin)):
+    return {"places": await db.list_partner_places(include_inactive=True)}
+
+
+@app.post("/api/admin/partner-places")
+async def api_admin_create_partner_place(payload: PartnerPlaceUpsert, x_admin_actor: str = Header(default=""), _: None = Depends(require_admin)):
+    place = await db.save_partner_place(payload.model_dump())
+    await record_admin_action(x_admin_actor, "partner_place_created", "partner_place", place["id"], {"name": place["name"]})
+    return {"place": place}
+
+
+@app.put("/api/admin/partner-places/{place_id}")
+async def api_admin_update_partner_place(place_id: int, payload: PartnerPlaceUpsert, x_admin_actor: str = Header(default=""), _: None = Depends(require_admin)):
+    try:
+        place = await db.save_partner_place(payload.model_dump(), place_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Partner place not found") from exc
+    await record_admin_action(x_admin_actor, "partner_place_updated", "partner_place", place_id, {"name": place["name"]})
+    return {"place": place}
+
+
+@app.get("/api/admin/map-diagnostics")
+async def api_admin_map_diagnostics(limit: int = 100, _: None = Depends(require_admin)):
+    return {"reports": await _admin_table_rows("map_diagnostics", order_by="created_at DESC", limit=max(1, min(limit, 500)))}
 
 
 @app.post("/api/admin/broadcast")

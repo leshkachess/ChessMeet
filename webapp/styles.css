@@ -117,6 +117,13 @@ a { color: inherit; }
 .place-card > span { color: var(--green); font-size: 24px; }
 .place-card small, .place-card div { color: var(--muted); font-size: 12px; }
 .place-card a { color: var(--green); font-weight: 850; text-decoration: none; }
+.partner-place-list { display: grid; gap: 12px; margin-bottom: 14px; }
+.partner-place-card { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; border: 1px solid #dfe9dc; border-radius: 22px; background: linear-gradient(135deg, #fffdf7, var(--card)); box-shadow: 0 8px 24px rgba(22,131,75,.08); }
+.partner-place-card img, .partner-place-icon { width: 76px; height: 76px; border-radius: 16px; object-fit: cover; display: grid; place-items: center; background: #f8f1df; font-size: 34px; }
+.partner-place-card small { display: inline-block; color: var(--green); font-weight: 900; }
+.partner-place-card h3 { margin: 4px 0; }.partner-place-card p { margin: 0; color: var(--muted); font-size: 13px; }
+.partner-place-meta { margin-top: 5px; color: var(--muted); font-size: 12px; }.partner-place-card .big-primary { grid-column: 1 / -1; margin: 0; }
+.puzzle-archive { display: grid; gap: 8px; margin-top: 10px; }.puzzle-archive > div { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--soft); font-size: 12px; }.puzzle-archive b { color: var(--green); white-space: nowrap; }
 @media (max-width: 420px) { .advanced-filters { grid-template-columns: 1fr; } .city-stat-row { gap: 5px; } }
 .avatar-btn { padding: 0; background: transparent; }
 .top-avatar, .avatar, .profile-avatar {
