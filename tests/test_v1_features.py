@@ -1,5 +1,9 @@
 from datetime import datetime, timezone
 import asyncio
+import json
+from pathlib import Path
+
+import chess
 
 from src.cities import city_catalog, city_today_key
 from src.main import GameCreate, PreferencesUpdate, resolve_database_path, _csv_response
@@ -43,6 +47,26 @@ def test_image_data_url_requires_real_matching_image_signature():
         assert False, "fake image must be rejected"
     except ValueError as exc:
         assert str(exc) == "INVALID_PHOTO"
+
+
+def test_mate_in_one_pack_is_diverse_verified_and_preserves_august_first():
+    data = json.loads(
+        (Path(__file__).parents[1] / "src" / "daily_puzzles_lichess_mate1_verified_150.json").read_text(encoding="utf-8")
+    )
+    puzzles = data["puzzles"]
+    assert len(puzzles) == 150
+    assert puzzles[29]["id"] == 310030
+    assert puzzles[29]["fen"] == "R7/8/6p1/6rk/7p/5K2/8/8 w - - 2 76"
+    assert {p["side"] for p in puzzles} == {"Белые начинают", "Чёрные начинают"}
+    assert len({p.get("mating_piece") for p in puzzles if p.get("mating_piece")}) >= 5
+    for puzzle in puzzles:
+        board = chess.Board(puzzle["fen"])
+        for move_uci in puzzle["solution_moves"]:
+            move = chess.Move.from_uci(move_uci)
+            assert move in board.legal_moves
+            candidate = board.copy(stack=False)
+            candidate.push(move)
+            assert candidate.is_checkmate()
 
 
 def test_city_dates_follow_local_timezone():

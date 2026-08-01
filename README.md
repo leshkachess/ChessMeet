@@ -1,4 +1,4 @@
-# ChessMeet v1.5.1 — Railway Ready
+# ChessMeet v1.5.2 — Railway Ready
 
 ## Что нового в 1.4.0
 

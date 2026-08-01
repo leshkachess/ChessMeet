@@ -5,6 +5,7 @@
 /map-test*.png
 /visual-auth-url.txt
 /bandit-report.json
+/preview-assets/
 __pycache__/
 *.pyc
 *.pyo

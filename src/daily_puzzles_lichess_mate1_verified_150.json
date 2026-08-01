@@ -1,0 +1,3037 @@
+{
+  "source": "Lichess public puzzle database ? verified diverse mate-in-one pack",
+  "source_url": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+  "source_note": "All new positions are Lichess mateIn1 puzzles rated above the previous pack. The source enabling move is applied before display; every legal immediate checkmate is accepted. Puzzle 310030 is preserved for 2026-08-01 continuity.",
+  "count": 150,
+  "generated_at": "2026-08-01T07:51:11.692513+00:00",
+  "verification": "Every FEN, source solution and accepted mate move was validated locally with python-chess.",
+  "distribution": {
+    "new_puzzle_sides": {
+      "white": 75,
+      "black": 74
+    },
+    "mating_pieces": {
+      "b": 25,
+      "q": 32,
+      "n": 25,
+      "r": 32,
+      "p": 25,
+      "k": 10
+    },
+    "rating_min": 1056,
+    "rating_max": 1918
+  },
+  "puzzles": [
+    {
+      "id": 410001,
+      "title": "Мат в 1 ? #1",
+      "side": "Белые начинают",
+      "fen": "8/3B2pp/p5k1/6P1/1ppp1K2/8/1P6/8 w - - 0 39",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d7e8",
+      "solution_moves": [
+        "d7e8"
+      ],
+      "solution_san": "Be8#",
+      "explanation": "Be8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "001cr",
+      "rating": 1631,
+      "popularity": 94,
+      "themes": "bishopEndgame endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "c5c4"
+    },
+    {
+      "id": 410002,
+      "title": "Мат в 1 ? #2",
+      "side": "Чёрные начинают",
+      "fen": "r3k2r/pb1p1ppp/1b4q1/1Q2P3/8/2NP1PP1/PP4P1/R1B2R1K b kq - 0 17",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6h5",
+      "solution_moves": [
+        "g6h5"
+      ],
+      "solution_san": "Qh5#",
+      "explanation": "Qh5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "001wb",
+      "rating": 1076,
+      "popularity": 95,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h2g3"
+    },
+    {
+      "id": 410003,
+      "title": "Мат в 1 ? #3",
+      "side": "Чёрные начинают",
+      "fen": "1qr2rk1/1p1p1ppp/pB2p1n1/7n/2P1P3/1Q2NP1P/PP2BKPb/3R1R2 b - - 2 20",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b8g3",
+      "solution_moves": [
+        "b8g3"
+      ],
+      "solution_san": "Qg3#",
+      "explanation": "Qg3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "002HE",
+      "rating": 1116,
+      "popularity": 94,
+      "themes": "master mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "g1f2"
+    },
+    {
+      "id": 410004,
+      "title": "Мат в 1 ? #4",
+      "side": "Чёрные начинают",
+      "fen": "8/3pk3/R7/1R2PK1p/2PPn1r1/8/8/8 b - - 0 43",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e4g3",
+      "solution_moves": [
+        "e4g3"
+      ],
+      "solution_san": "Ng3#",
+      "explanation": "Ng3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "003IX",
+      "rating": 1690,
+      "popularity": 89,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f4f5"
+    },
+    {
+      "id": 410005,
+      "title": "Мат в 1 ? #5",
+      "side": "Чёрные начинают",
+      "fen": "r4rk1/1pp2ppp/p2p4/2bPp3/2P1PB1q/P1N2B2/1P3P2/R2QK1R1 b Q - 0 15",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h4f2",
+      "solution_moves": [
+        "h4f2"
+      ],
+      "solution_san": "Qxf2#",
+      "explanation": "Qxf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "003YF",
+      "rating": 1062,
+      "popularity": 79,
+      "themes": "attackingF2F7 mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "c1f4"
+    },
+    {
+      "id": 410006,
+      "title": "Мат в 1 ? #6",
+      "side": "Чёрные начинают",
+      "fen": "3r4/R7/2p5/p1P2p2/1p4k1/nP2K3/P3NP2/8 b - - 4 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a3c2",
+      "solution_moves": [
+        "a3c2"
+      ],
+      "solution_san": "Nc2#",
+      "explanation": "Nc2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "004JD",
+      "rating": 1296,
+      "popularity": 91,
+      "themes": "cornerMate endgame mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "d2e3"
+    },
+    {
+      "id": 410007,
+      "title": "Мат в 1 ? #7",
+      "side": "Белые начинают",
+      "fen": "2q3k1/4br2/6pQ/1p1n2p1/7P/1P4P1/1B2PP2/6K1 w - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h6h8",
+      "solution_moves": [
+        "h6h8"
+      ],
+      "solution_san": "Qh8#",
+      "explanation": "Qh8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "004zI",
+      "rating": 1430,
+      "popularity": 91,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h7g6"
+    },
+    {
+      "id": 410008,
+      "title": "Мат в 1 ? #8",
+      "side": "Чёрные начинают",
+      "fen": "r3kb1r/ppqN1ppp/4pn2/1Q3b2/3P4/8/PP2PPPP/RNB1KB1R b KQkq - 0 9",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c7c1",
+      "solution_moves": [
+        "c7c1"
+      ],
+      "solution_san": "Qxc1#",
+      "explanation": "Qxc1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "005wJ",
+      "rating": 1393,
+      "popularity": 80,
+      "themes": "hangingPiece mate mateIn1 oneMove opening",
+      "mating_piece": "q",
+      "source_enabling_move": "e5d7"
+    },
+    {
+      "id": 410009,
+      "title": "Мат в 1 ? #9",
+      "side": "Белые начинают",
+      "fen": "2rq1rk1/1b5p/p3p3/1p1pBpp1/2nP2N1/1RP1PP2/P1Q3PP/3R2K1 w - - 0 23",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g4h6",
+      "solution_moves": [
+        "g4h6"
+      ],
+      "solution_san": "Nh6#",
+      "explanation": "Nh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "007QU",
+      "rating": 1100,
+      "popularity": 100,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f7f5"
+    },
+    {
+      "id": 410010,
+      "title": "Мат в 1 ? #10",
+      "side": "Белые начинают",
+      "fen": "rn3k1r/pp2bp1p/2p1pNp1/6B1/5P2/7P/PPP4P/2K1RR2 w - - 4 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5h6",
+      "solution_moves": [
+        "g5h6"
+      ],
+      "solution_san": "Bh6#",
+      "explanation": "Bh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "009J1",
+      "rating": 1239,
+      "popularity": 98,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e8f8"
+    },
+    {
+      "id": 410011,
+      "title": "Мат в 1 ? #11",
+      "side": "Чёрные начинают",
+      "fen": "8/6kp/4b1q1/1p6/1PpPN2Q/2P1P3/r5P1/5RK1 b - - 0 34",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6g2",
+      "solution_moves": [
+        "g6g2"
+      ],
+      "solution_san": "Qxg2#",
+      "explanation": "Qxg2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Bm8",
+      "rating": 1126,
+      "popularity": 86,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d2e4"
+    },
+    {
+      "id": 410012,
+      "title": "Мат в 1 ? #12",
+      "side": "Белые начинают",
+      "fen": "3r4/1p4p1/2pB1bBp/p1Pk4/3rp3/P7/1PK2P2/4R3 w - - 2 32",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6f7",
+      "solution_moves": [
+        "g6f7"
+      ],
+      "solution_san": "Bf7#",
+      "explanation": "Bf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00CWE",
+      "rating": 1487,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e6d5"
+    },
+    {
+      "id": 410013,
+      "title": "Мат в 1 ? #13",
+      "side": "Белые начинают",
+      "fen": "3k2r1/pR5R/3r4/4p3/7q/3Pn1PP/PP5K/8 w - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b7b8",
+      "solution_moves": [
+        "b7b8"
+      ],
+      "solution_san": "Rb8#",
+      "explanation": "Rb8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00GY4",
+      "rating": 1167,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "g5h4"
+    },
+    {
+      "id": 410014,
+      "title": "Мат в 1 ? #14",
+      "side": "Белые начинают",
+      "fen": "r3r3/1kpR1qpp/p1n2p2/Qp2P2P/1N6/4Pb2/PPP3P1/2K2R2 w - - 1 23",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a5c7",
+      "solution_moves": [
+        "a5c7"
+      ],
+      "solution_san": "Qxc7#",
+      "explanation": "Qxc7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00H1C",
+      "rating": 1287,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove swallowstailMate",
+      "mating_piece": "q",
+      "source_enabling_move": "e7c6"
+    },
+    {
+      "id": 410015,
+      "title": "Мат в 1 ? #15",
+      "side": "Белые начинают",
+      "fen": "5r1k/8/2b2rQp/1p1p2p1/1q4P1/8/8/1B3R1K w - - 0 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6h7",
+      "solution_moves": [
+        "g6h7"
+      ],
+      "solution_san": "Qh7#",
+      "explanation": "Qh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00HoG",
+      "rating": 1499,
+      "popularity": 89,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "f7f6"
+    },
+    {
+      "id": 410016,
+      "title": "Мат в 1 ? #16",
+      "side": "Чёрные начинают",
+      "fen": "r4rk1/4p1bp/3p2p1/q1pP1P2/4QP2/4B3/1pK4P/1B1R3R b - - 1 22",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a5c3",
+      "solution_moves": [
+        "a5c3"
+      ],
+      "solution_san": "Qc3#",
+      "explanation": "Qc3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Hut",
+      "rating": 1261,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "c1c2"
+    },
+    {
+      "id": 410017,
+      "title": "Мат в 1 ? #17",
+      "side": "Белые начинают",
+      "fen": "1rb2k2/p4ppp/2B5/2pr1NP1/2P5/P7/7P/4R1K1 w - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e1e8",
+      "solution_moves": [
+        "e1e8"
+      ],
+      "solution_san": "Re8#",
+      "explanation": "Re8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Hxb",
+      "rating": 1125,
+      "popularity": 83,
+      "themes": "endgame mate mateIn1 oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "d8d5"
+    },
+    {
+      "id": 410018,
+      "title": "Мат в 1 ? #18",
+      "side": "Чёрные начинают",
+      "fen": "4Q3/6pk/p3p2p/5P2/1p1P4/4q2P/2B1n2B/7K b - - 0 35",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e3f3",
+      "solution_moves": [
+        "e3f3"
+      ],
+      "solution_san": "Qf3#",
+      "explanation": "Qf3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00IPp",
+      "rating": 1552,
+      "popularity": 90,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "g4f5"
+    },
+    {
+      "id": 410019,
+      "title": "Мат в 1 ? #19",
+      "side": "Белые начинают",
+      "fen": "1rb4r/pp1nb1pp/6k1/3np3/2q1P3/2N2Q2/PPP2PPP/R1B1K2R w KQ - 0 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f3f5",
+      "solution_moves": [
+        "f3f5"
+      ],
+      "solution_san": "Qf5#",
+      "explanation": "Qf5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00LPw",
+      "rating": 1169,
+      "popularity": 96,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "f6d5"
+    },
+    {
+      "id": 410020,
+      "title": "Мат в 1 ? #20",
+      "side": "Белые начинают",
+      "fen": "r3r1k1/p2n1p1R/5n2/qp3Q2/3P4/B3Pp2/P4P1P/1B5K w - - 1 24",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f5g5",
+      "solution_moves": [
+        "f5g5"
+      ],
+      "solution_san": "Qg5#",
+      "explanation": "Qg5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00M0i",
+      "rating": 1123,
+      "popularity": 67,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h8g8"
+    },
+    {
+      "id": 410021,
+      "title": "Мат в 1 ? #21",
+      "side": "Белые начинают",
+      "fen": "1R6/5Q2/p1kb1p2/2r1p3/3n4/P6P/5PP1/4qBK1 w - - 2 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f7b7",
+      "solution_moves": [
+        "f7b7"
+      ],
+      "solution_san": "Qb7#",
+      "explanation": "Qb7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00MYL",
+      "rating": 1100,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d7c6"
+    },
+    {
+      "id": 410022,
+      "title": "Мат в 1 ? #22",
+      "side": "Белые начинают",
+      "fen": "2k2b1r/pp3ppp/8/BN2p1P1/2n1Nn1P/8/PP3P2/2KR4 w - - 0 25",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d1d8",
+      "solution_moves": [
+        "d1d8"
+      ],
+      "solution_san": "Rd8#",
+      "explanation": "Rd8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Mbv",
+      "rating": 1551,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "b6c4"
+    },
+    {
+      "id": 410023,
+      "title": "Мат в 1 ? #23",
+      "side": "Белые начинают",
+      "fen": "5r2/5p2/4nP1k/4N1p1/8/6P1/6K1/R7 w - - 2 79",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a1h1",
+      "solution_moves": [
+        "a1h1"
+      ],
+      "solution_san": "Rh1#",
+      "explanation": "Rh1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00O9q",
+      "rating": 1304,
+      "popularity": 87,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "h7h6"
+    },
+    {
+      "id": 410024,
+      "title": "Мат в 1 ? #24",
+      "side": "Белые начинают",
+      "fen": "r2qkbnr/pp5p/8/4Nb2/8/1Qp5/PP2PPPP/R3KB1R w KQkq - 0 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b3f7",
+      "solution_moves": [
+        "b3f7"
+      ],
+      "solution_san": "Qf7#",
+      "explanation": "Qf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Or5",
+      "rating": 1463,
+      "popularity": 63,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "q",
+      "source_enabling_move": "d4c3"
+    },
+    {
+      "id": 410025,
+      "title": "Мат в 1 ? #25",
+      "side": "Белые начинают",
+      "fen": "5r1k/2p3Rp/3p4/p2Pn3/1p2B3/1P6/PKP1r2P/6R1 w - - 2 29",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g7h7",
+      "solution_moves": [
+        "g7h7"
+      ],
+      "solution_san": "Rxh7#",
+      "explanation": "Rxh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Pw1",
+      "rating": 1225,
+      "popularity": 98,
+      "themes": "endgame master mate mateIn1 oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "f2e2"
+    },
+    {
+      "id": 410026,
+      "title": "Мат в 1 ? #26",
+      "side": "Чёрные начинают",
+      "fen": "rn1qk2r/pb3ppp/5n2/2b5/8/2N1p1P1/PP1PPPNP/R1BQKB1R b KQkq - 1 9",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e3f2",
+      "solution_moves": [
+        "e3f2"
+      ],
+      "solution_san": "exf2#",
+      "explanation": "exf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00QBx",
+      "rating": 1171,
+      "popularity": 90,
+      "themes": "advancedPawn attackingF2F7 mate mateIn1 oneMove opening",
+      "mating_piece": "p",
+      "source_enabling_move": "h4g2"
+    },
+    {
+      "id": 410027,
+      "title": "Мат в 1 ? #27",
+      "side": "Белые начинают",
+      "fen": "3r1b1r/2pn4/1p1p3p/2kP2qn/Q3P3/4pp2/1P4PP/4R1K1 w - - 0 27",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e1c1",
+      "solution_moves": [
+        "e1c1"
+      ],
+      "solution_san": "Rc1#",
+      "explanation": "Rc1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Qpu",
+      "rating": 1290,
+      "popularity": 87,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f4e3"
+    },
+    {
+      "id": 410028,
+      "title": "Мат в 1 ? #28",
+      "side": "Чёрные начинают",
+      "fen": "6k1/4P3/p5p1/8/8/2P3PP/1r5r/R3RK2 b - - 0 46",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h2h1",
+      "solution_moves": [
+        "h2h1"
+      ],
+      "solution_san": "Rh1#",
+      "explanation": "Rh1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Qqp",
+      "rating": 1597,
+      "popularity": 99,
+      "themes": "endgame mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "e6e7"
+    },
+    {
+      "id": 410029,
+      "title": "Мат в 1 ? #29",
+      "side": "Белые начинают",
+      "fen": "8/1R5R/4kpp1/4p3/4P2K/5P1P/7r/6r1 w - - 11 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b7b6",
+      "solution_moves": [
+        "b7b6"
+      ],
+      "solution_san": "Rb6#",
+      "explanation": "Rb6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00STy",
+      "rating": 1509,
+      "popularity": 83,
+      "themes": "endgame master mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "a2h2"
+    },
+    {
+      "id": 310030,
+      "title": "Мат в 1 — #30",
+      "side": "Белые начинают",
+      "fen": "R7/8/6p1/6rk/7p/5K2/8/8 w - - 2 76",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a8h8",
+      "solution_moves": [
+        "a8h8"
+      ],
+      "solution_san": "Rh8#",
+      "solution_sans": [
+        "Rh8#"
+      ],
+      "explanation": "Rh8# — один из легальных матующих ходов. Позиция взята из открытого набора mateInOne.csv на основе Lichess и проверена локально.",
+      "source": "Samboy ChessLua mateInOne.csv / Lichess games",
+      "source_puzzle_id": "00f6b8b8",
+      "lichess_puzzle_id": "00f6b8b8",
+      "source_prev_fen": "R7/8/6pk/6r1/7p/5K2/8/8 b - - 1 75",
+      "source_enabling_move": "h6h5",
+      "difficulty": 600,
+      "themes": "mate mateIn1 oneMove"
+    },
+    {
+      "id": 410030,
+      "title": "Мат в 1 ? #31",
+      "side": "Белые начинают",
+      "fen": "r4rk1/pb2ppb1/1q6/6PQ/8/2NP1N2/PP1K1PP1/n6R w - - 0 17",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5h7",
+      "solution_moves": [
+        "h5h7"
+      ],
+      "solution_san": "Qh7#",
+      "explanation": "Qh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00SfT",
+      "rating": 1068,
+      "popularity": 93,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "c2a1"
+    },
+    {
+      "id": 410031,
+      "title": "Мат в 1 ? #32",
+      "side": "Чёрные начинают",
+      "fen": "8/8/8/P6p/8/2Rnk3/r7/3KN3 b - - 2 60",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a2d2",
+      "solution_moves": [
+        "a2d2"
+      ],
+      "solution_san": "Rd2#",
+      "explanation": "Rd2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00VIe",
+      "rating": 1709,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove vukovicMate",
+      "mating_piece": "r",
+      "source_enabling_move": "f3e1"
+    },
+    {
+      "id": 410032,
+      "title": "Мат в 1 ? #33",
+      "side": "Чёрные начинают",
+      "fen": "6k1/5pp1/4pP1p/1p1bP3/1P1P1KP1/1r6/3B1R1P/8 b - - 0 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g7g5",
+      "solution_moves": [
+        "g7g5"
+      ],
+      "solution_san": "g5#",
+      "explanation": "g5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00ViT",
+      "rating": 1392,
+      "popularity": 71,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "f5f6"
+    },
+    {
+      "id": 410033,
+      "title": "Мат в 1 ? #34",
+      "side": "Чёрные начинают",
+      "fen": "3N3k/pQ5p/4p1p1/3q4/8/2b1P1PK/P3RP1P/4n3 b - - 2 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d5h5",
+      "solution_moves": [
+        "d5h5"
+      ],
+      "solution_san": "Qh5#",
+      "explanation": "Qh5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00X5a",
+      "rating": 1332,
+      "popularity": 91,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "g2h3"
+    },
+    {
+      "id": 410034,
+      "title": "Мат в 1 ? #35",
+      "side": "Белые начинают",
+      "fen": "rn4k1/pp1q1r2/3p2B1/3p4/2PB2b1/8/P2K1PP1/7R w - - 0 22",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h1h8",
+      "solution_moves": [
+        "h1h8"
+      ],
+      "solution_san": "Rh8#",
+      "explanation": "Rh8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Xfn",
+      "rating": 1381,
+      "popularity": 75,
+      "themes": "mate mateIn1 middlegame oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "c6d5"
+    },
+    {
+      "id": 410035,
+      "title": "Мат в 1 ? #36",
+      "side": "Белые начинают",
+      "fen": "r2k4/pp1nRr2/2pP1N1p/8/3P3p/8/PPP3P1/6K1 w - - 0 25",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e7e8",
+      "solution_moves": [
+        "e7e8"
+      ],
+      "solution_san": "Re8#",
+      "explanation": "Re8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00Zwc",
+      "rating": 1328,
+      "popularity": 93,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f8f7"
+    },
+    {
+      "id": 410036,
+      "title": "Мат в 1 ? #37",
+      "side": "Чёрные начинают",
+      "fen": "7k/1p2R3/p3N3/3p4/2n5/2PK4/PP5r/8 b - - 4 36",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h2d2",
+      "solution_moves": [
+        "h2d2"
+      ],
+      "solution_san": "Rd2#",
+      "explanation": "Rd2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00bJi",
+      "rating": 1470,
+      "popularity": 89,
+      "themes": "endgame hookMate mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "c2d3"
+    },
+    {
+      "id": 410037,
+      "title": "Мат в 1 ? #38",
+      "side": "Белые начинают",
+      "fen": "4b1k1/4P2p/p1p3pP/6q1/3Q4/Pr6/1PP3P1/1K6 w - - 0 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d4g7",
+      "solution_moves": [
+        "d4g7"
+      ],
+      "solution_san": "Qg7#",
+      "explanation": "Qg7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00bZ2",
+      "rating": 1106,
+      "popularity": 85,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "b7b3"
+    },
+    {
+      "id": 410038,
+      "title": "Мат в 1 ? #39",
+      "side": "Чёрные начинают",
+      "fen": "8/2R5/6pk/p3p2p/4Nq2/5n1P/P4RP1/7K b - - 1 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f4h2",
+      "solution_moves": [
+        "f4h2"
+      ],
+      "solution_san": "Qh2#",
+      "explanation": "Qh2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00cZ4",
+      "rating": 1056,
+      "popularity": 87,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d2f2"
+    },
+    {
+      "id": 410039,
+      "title": "Мат в 1 ? #40",
+      "side": "Чёрные начинают",
+      "fen": "rnb1k2r/p1p2ppp/1p3n2/2b3B1/3qP3/3P1N2/PPP3PP/RN1QKB1R b KQkq - 2 8",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d4f2",
+      "solution_moves": [
+        "d4f2"
+      ],
+      "solution_san": "Qf2#",
+      "explanation": "Qf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00eNa",
+      "rating": 1057,
+      "popularity": 93,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "q",
+      "source_enabling_move": "e5f3"
+    },
+    {
+      "id": 410040,
+      "title": "Мат в 1 ? #41",
+      "side": "Чёрные начинают",
+      "fen": "r1b1k1nr/pppp1ppp/5q2/2b1N3/4P3/2N5/PPPP2PP/R1BQKB1R b KQkq - 0 6",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f6f2",
+      "solution_moves": [
+        "f6f2"
+      ],
+      "solution_san": "Qf2#",
+      "explanation": "Qf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00euQ",
+      "rating": 1087,
+      "popularity": 77,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "q",
+      "source_enabling_move": "f3e5"
+    },
+    {
+      "id": 410041,
+      "title": "Мат в 1 ? #42",
+      "side": "Белые начинают",
+      "fen": "8/Q5b1/p3p3/1p1kqpN1/1P6/P7/4nPP1/5K2 w - - 6 47",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a7c5",
+      "solution_moves": [
+        "a7c5"
+      ],
+      "solution_san": "Qc5#",
+      "explanation": "Qc5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00fXd",
+      "rating": 1373,
+      "popularity": 94,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d6d5"
+    },
+    {
+      "id": 410042,
+      "title": "Мат в 1 ? #43",
+      "side": "Чёрные начинают",
+      "fen": "8/pp3k1p/3B2p1/2P5/1P6/4n2P/P4qPK/2Q5 b - - 1 33",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f2g2",
+      "solution_moves": [
+        "f2g2"
+      ],
+      "solution_san": "Qxg2#",
+      "explanation": "Qxg2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00hck",
+      "rating": 1238,
+      "popularity": 89,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h1h2"
+    },
+    {
+      "id": 410043,
+      "title": "Мат в 1 ? #44",
+      "side": "Белые начинают",
+      "fen": "8/2r1b3/1pk5/6P1/5q2/3R4/Q1P1K3/8 w - - 5 38",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a2d5",
+      "solution_moves": [
+        "a2d5"
+      ],
+      "solution_san": "Qd5#",
+      "explanation": "Qd5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00j1r",
+      "rating": 1600,
+      "popularity": 88,
+      "themes": "dovetailMate endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d7c6"
+    },
+    {
+      "id": 410044,
+      "title": "Мат в 1 ? #45",
+      "side": "Чёрные начинают",
+      "fen": "r3r1k1/ppp2R2/1b5Q/3PP2n/2B3bq/2N5/PP4PP/R6K b - - 0 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5g3",
+      "solution_moves": [
+        "h5g3"
+      ],
+      "solution_san": "Ng3#",
+      "explanation": "Ng3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00jPw",
+      "rating": 1058,
+      "popularity": 95,
+      "themes": "mate mateIn1 middlegame oneMove pin",
+      "mating_piece": "n",
+      "source_enabling_move": "f1f7"
+    },
+    {
+      "id": 410045,
+      "title": "Мат в 1 ? #46",
+      "side": "Чёрные начинают",
+      "fen": "k2r3r/pp6/6R1/3P2Pp/2P2B1n/P1N4q/1P3P2/R4QK1 b - - 2 24",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h4f3",
+      "solution_moves": [
+        "h4f3"
+      ],
+      "solution_san": "Nf3#",
+      "explanation": "Nf3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00kyA",
+      "rating": 1060,
+      "popularity": 70,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "d1f1"
+    },
+    {
+      "id": 410046,
+      "title": "Мат в 1 ? #47",
+      "side": "Белые начинают",
+      "fen": "3q4/1p6/p4N2/5QP1/4Pn1k/2P4r/1P3K2/8 w - - 5 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f5f4",
+      "solution_moves": [
+        "f5f4",
+        "f5g4"
+      ],
+      "solution_san": "Qxf4#",
+      "explanation": "Qxf4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00l3p",
+      "rating": 1111,
+      "popularity": 95,
+      "themes": "endgame hangingPiece mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h5h4"
+    },
+    {
+      "id": 410047,
+      "title": "Мат в 1 ? #48",
+      "side": "Белые начинают",
+      "fen": "r4k2/1p4R1/3pQ3/pP2p3/4q3/4Pr2/8/7K w - - 5 39",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e6g8",
+      "solution_moves": [
+        "e6e7",
+        "e6g8",
+        "g7g8"
+      ],
+      "solution_san": "Qg8#",
+      "explanation": "Qg8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00lio",
+      "rating": 1089,
+      "popularity": 95,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "e8f8"
+    },
+    {
+      "id": 410048,
+      "title": "Мат в 1 ? #49",
+      "side": "Чёрные начинают",
+      "fen": "R3rk1q/p3Np2/1pp5/8/P1Q1P1pP/2P2P2/1P3bP1/3R3K b - - 0 34",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h8h4",
+      "solution_moves": [
+        "h8h4"
+      ],
+      "solution_san": "Qxh4#",
+      "explanation": "Qxh4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00n6z",
+      "rating": 1188,
+      "popularity": 83,
+      "themes": "kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d8a8"
+    },
+    {
+      "id": 410049,
+      "title": "Мат в 1 ? #50",
+      "side": "Чёрные начинают",
+      "fen": "r3k2r/ppp2p1p/3b1p2/4p3/8/1PPB4/b1PQ1PPP/2KR3R b kq - 0 14",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d6a3",
+      "solution_moves": [
+        "d6a3"
+      ],
+      "solution_san": "Ba3#",
+      "explanation": "Ba3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00nCq",
+      "rating": 1064,
+      "popularity": 62,
+      "themes": "doubleBishopMate mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "b2b3"
+    },
+    {
+      "id": 410050,
+      "title": "Мат в 1 ? #51",
+      "side": "Чёрные начинают",
+      "fen": "8/2k3pp/4p3/1R2Kp2/1Pr4P/6P1/5P2/8 b - - 8 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4e4",
+      "solution_moves": [
+        "c4e4"
+      ],
+      "solution_san": "Re4#",
+      "explanation": "Re4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00nNa",
+      "rating": 1269,
+      "popularity": 71,
+      "themes": "endgame mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "f4e5"
+    },
+    {
+      "id": 410051,
+      "title": "Мат в 1 ? #52",
+      "side": "Белые начинают",
+      "fen": "1n1q2rk/p3b3/1pr1p1Rp/2p1P3/4N3/2PP1N1P/P3B2K/6R1 w - - 0 29",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6h6",
+      "solution_moves": [
+        "g6h6"
+      ],
+      "solution_san": "Rxh6#",
+      "explanation": "Rxh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00qoE",
+      "rating": 1215,
+      "popularity": 93,
+      "themes": "kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "g7h6"
+    },
+    {
+      "id": 410052,
+      "title": "Мат в 1 ? #53",
+      "side": "Белые начинают",
+      "fen": "8/2p2r1p/1p4pk/p2PQ3/2P3P1/1P1q1B1P/P1n3K1/8 w - - 8 42",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g4g5",
+      "solution_moves": [
+        "g4g5"
+      ],
+      "solution_san": "g5#",
+      "explanation": "g5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00u3h",
+      "rating": 1171,
+      "popularity": 99,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "g7h6"
+    },
+    {
+      "id": 410053,
+      "title": "Мат в 1 ? #54",
+      "side": "Чёрные начинают",
+      "fen": "7Q/5p2/6p1/R3pk1p/P2q2PK/7P/5P2/7r b - - 0 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d4g4",
+      "solution_moves": [
+        "d4g4"
+      ],
+      "solution_san": "Qxg4#",
+      "explanation": "Qxg4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00uJL",
+      "rating": 1564,
+      "popularity": 93,
+      "themes": "endgame epauletteMate master mate mateIn1 oneMove pin",
+      "mating_piece": "q",
+      "source_enabling_move": "g2g4"
+    },
+    {
+      "id": 410054,
+      "title": "Мат в 1 ? #55",
+      "side": "Белые начинают",
+      "fen": "r2qkbr1/pp2pp1p/5n2/2p1Nb2/2Q5/4B3/PP1N1PPP/n2K1B1R w q - 0 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4f7",
+      "solution_moves": [
+        "c4f7"
+      ],
+      "solution_san": "Qxf7#",
+      "explanation": "Qxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00uid",
+      "rating": 1182,
+      "popularity": 83,
+      "themes": "attackingF2F7 mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "c2a1"
+    },
+    {
+      "id": 410055,
+      "title": "Мат в 1 ? #56",
+      "side": "Белые начинают",
+      "fen": "8/8/7p/6nP/5kPN/1r3B2/5K2/8 w - - 2 55",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h4g6",
+      "solution_moves": [
+        "h4g6"
+      ],
+      "solution_san": "Ng6#",
+      "explanation": "Ng6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00vj7",
+      "rating": 1128,
+      "popularity": 100,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "e5f4"
+    },
+    {
+      "id": 410056,
+      "title": "Мат в 1 ? #57",
+      "side": "Чёрные начинают",
+      "fen": "R7/3kbpp1/4p3/1p1pP3/2pPb1P1/1PP1B3/1Q3P1r/6K1 b - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h2h1",
+      "solution_moves": [
+        "h2h1"
+      ],
+      "solution_san": "Rh1#",
+      "explanation": "Rh1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00xDa",
+      "rating": 1294,
+      "popularity": 88,
+      "themes": "endgame master mate mateIn1 oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "a1a8"
+    },
+    {
+      "id": 410057,
+      "title": "Мат в 1 ? #58",
+      "side": "Белые начинают",
+      "fen": "rnb1qrk1/pp4pp/4p3/3pNp1Q/2pPn3/2PBP1P1/PP1N1PP1/R3K2R w KQ - 2 12",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5h7",
+      "solution_moves": [
+        "h5h7"
+      ],
+      "solution_san": "Qxh7#",
+      "explanation": "Qxh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00xgi",
+      "rating": 1119,
+      "popularity": 93,
+      "themes": "kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d8e8"
+    },
+    {
+      "id": 410058,
+      "title": "Мат в 1 ? #59",
+      "side": "Чёрные начинают",
+      "fen": "3B4/1p4kp/2b1Pp2/1pN2RpK/1P6/7P/6r1/8 b - - 0 34",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c6e8",
+      "solution_moves": [
+        "c6e8"
+      ],
+      "solution_san": "Be8#",
+      "explanation": "Be8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00y2j",
+      "rating": 1639,
+      "popularity": 91,
+      "themes": "endgame mate mateIn1 morphysMate oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "c7d8"
+    },
+    {
+      "id": 410059,
+      "title": "Мат в 1 ? #60",
+      "side": "Белые начинают",
+      "fen": "4rk2/pprR3p/1b4p1/6B1/4p2P/1B6/PP3PP1/6K1 w - - 1 32",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5h6",
+      "solution_moves": [
+        "g5h6"
+      ],
+      "solution_san": "Bh6#",
+      "explanation": "Bh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00ySR",
+      "rating": 1405,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "c8c7"
+    },
+    {
+      "id": 410060,
+      "title": "Мат в 1 ? #61",
+      "side": "Белые начинают",
+      "fen": "r3rk2/pp3pbp/6p1/4Nn2/2Qp1P2/1P5P/6P1/3R2K1 w - - 1 26",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4f7",
+      "solution_moves": [
+        "c4f7"
+      ],
+      "solution_san": "Qxf7#",
+      "explanation": "Qxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00yt1",
+      "rating": 1227,
+      "popularity": 100,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "h6f5"
+    },
+    {
+      "id": 410061,
+      "title": "Мат в 1 ? #62",
+      "side": "Белые начинают",
+      "fen": "1r1r3k/p3R1pp/b1p5/2pq2Q1/8/2PPR2P/PP3PP1/6K1 w - - 3 27",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5g7",
+      "solution_moves": [
+        "g5g7"
+      ],
+      "solution_san": "Qxg7#",
+      "explanation": "Qxg7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00zDW",
+      "rating": 1174,
+      "popularity": 88,
+      "themes": "kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "q",
+      "source_enabling_move": "d7d5"
+    },
+    {
+      "id": 410062,
+      "title": "Мат в 1 ? #63",
+      "side": "Белые начинают",
+      "fen": "3r1rk1/pp6/5pb1/5q2/2p5/P2P4/1PP4Q/2K3RR w - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h2h7",
+      "solution_moves": [
+        "h2h7"
+      ],
+      "solution_san": "Qh7#",
+      "explanation": "Qh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "00zqB",
+      "rating": 1823,
+      "popularity": 88,
+      "themes": "mate mateIn1 middlegame oneMove pin",
+      "mating_piece": "q",
+      "source_enabling_move": "c5c4"
+    },
+    {
+      "id": 410063,
+      "title": "Мат в 1 ? #64",
+      "side": "Чёрные начинают",
+      "fen": "6k1/pQ3pp1/7p/8/3P4/6Pb/PPR2r1P/6K1 b - - 0 25",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f2f1",
+      "solution_moves": [
+        "f2f1"
+      ],
+      "solution_san": "Rf1#",
+      "explanation": "Rf1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0104L",
+      "rating": 1069,
+      "popularity": 99,
+      "themes": "endgame mate mateIn1 oneMove operaMate",
+      "mating_piece": "r",
+      "source_enabling_move": "c1c2"
+    },
+    {
+      "id": 410064,
+      "title": "Мат в 1 ? #65",
+      "side": "Белые начинают",
+      "fen": "r2qkbnr/1p2pppp/p1n5/4N3/2BP4/8/PP3PPP/RNBb1RK1 w kq - 0 9",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4f7",
+      "solution_moves": [
+        "c4f7"
+      ],
+      "solution_san": "Bxf7#",
+      "explanation": "Bxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0109N",
+      "rating": 1215,
+      "popularity": 84,
+      "themes": "attackingF2F7 mate mateIn1 oneMove opening",
+      "mating_piece": "b",
+      "source_enabling_move": "g4d1"
+    },
+    {
+      "id": 410065,
+      "title": "Мат в 1 ? #66",
+      "side": "Белые начинают",
+      "fen": "r2qrk2/p2n2p1/b1pb1n1p/8/1p1P1N2/1Q3N1P/PP3PP1/R1B1R1K1 w - - 2 17",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f4g6",
+      "solution_moves": [
+        "f4g6"
+      ],
+      "solution_san": "Ng6#",
+      "explanation": "Ng6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01485",
+      "rating": 1116,
+      "popularity": 98,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f7f8"
+    },
+    {
+      "id": 410066,
+      "title": "Мат в 1 ? #67",
+      "side": "Белые начинают",
+      "fen": "r2qkb1r/1p2pppp/p2p1n2/2p1N3/P1B1P3/3P3P/1PPN1PP1/R1Bb1RK1 w kq - 0 10",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4f7",
+      "solution_moves": [
+        "c4f7"
+      ],
+      "solution_san": "Bxf7#",
+      "explanation": "Bxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "014gw",
+      "rating": 1114,
+      "popularity": 93,
+      "themes": "attackingF2F7 mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "h5d1"
+    },
+    {
+      "id": 410067,
+      "title": "Мат в 1 ? #68",
+      "side": "Белые начинают",
+      "fen": "2k5/1p5R/3K4/Pr6/8/1p6/8/8 w - - 2 47",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7h8",
+      "solution_moves": [
+        "h7h8"
+      ],
+      "solution_san": "Rh8#",
+      "explanation": "Rh8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0156I",
+      "rating": 1372,
+      "popularity": 92,
+      "themes": "endgame master mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "g5b5"
+    },
+    {
+      "id": 410068,
+      "title": "Мат в 1 ? #69",
+      "side": "Белые начинают",
+      "fen": "8/1b2R2p/p5k1/3p2P1/PP1n2KP/2r5/3N4/8 w - - 6 47",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h4h5",
+      "solution_moves": [
+        "h4h5"
+      ],
+      "solution_san": "h5#",
+      "explanation": "h5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "016I9",
+      "rating": 1140,
+      "popularity": 93,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "g7g6"
+    },
+    {
+      "id": 410069,
+      "title": "Мат в 1 ? #70",
+      "side": "Чёрные начинают",
+      "fen": "8/8/3R4/1P3k2/2Bb2p1/6K1/7r/8 b - - 2 63",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d4e5",
+      "solution_moves": [
+        "d4e5"
+      ],
+      "solution_san": "Be5#",
+      "explanation": "Be5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "016fz",
+      "rating": 1725,
+      "popularity": 91,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "h4g3"
+    },
+    {
+      "id": 410070,
+      "title": "Мат в 1 ? #71",
+      "side": "Белые начинают",
+      "fen": "1r6/3R2p1/p5kp/4p2N/2pn2K1/1P6/P5PP/8 w - - 0 31",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d7g7",
+      "solution_moves": [
+        "d7g7"
+      ],
+      "solution_san": "Rxg7#",
+      "explanation": "Rxg7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0184P",
+      "rating": 1130,
+      "popularity": 97,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "b5c4"
+    },
+    {
+      "id": 410071,
+      "title": "Мат в 1 ? #72",
+      "side": "Белые начинают",
+      "fen": "3R4/2p2k2/4p1p1/1p2P2p/1P6/8/4rr2/3R2K1 w - - 8 42",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d1d7",
+      "solution_moves": [
+        "d1d7"
+      ],
+      "solution_san": "R1d7#",
+      "explanation": "R1d7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01BI2",
+      "rating": 1063,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "e7f7"
+    },
+    {
+      "id": 410072,
+      "title": "Мат в 1 ? #73",
+      "side": "Белые начинают",
+      "fen": "r1b1kb1r/p2n1ppp/p3p3/1NppP1B1/3P4/3B1N2/1qP2PPP/3QK2R w Kkq - 0 12",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b5c7",
+      "solution_moves": [
+        "b5c7"
+      ],
+      "solution_san": "Nc7#",
+      "explanation": "Nc7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01BnQ",
+      "rating": 1135,
+      "popularity": 93,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "b7a6"
+    },
+    {
+      "id": 410073,
+      "title": "Мат в 1 ? #74",
+      "side": "Чёрные начинают",
+      "fen": "Q3R3/5Rpk/7p/8/2p5/2P5/1Pr4r/4K3 b - - 0 54",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c2c1",
+      "solution_moves": [
+        "c2c1"
+      ],
+      "solution_san": "Rc1#",
+      "explanation": "Rc1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01HI3",
+      "rating": 1220,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove queenRookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "b7f7"
+    },
+    {
+      "id": 410074,
+      "title": "Мат в 1 ? #75",
+      "side": "Белые начинают",
+      "fen": "1r5Q/3b1k2/3qp1p1/3p3R/p2P3P/2P3P1/P4P2/6K1 w - - 2 33",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5h7",
+      "solution_moves": [
+        "h5h7"
+      ],
+      "solution_san": "Rh7#",
+      "explanation": "Rh7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01Mgn",
+      "rating": 1350,
+      "popularity": 87,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "g8f7"
+    },
+    {
+      "id": 410075,
+      "title": "Мат в 1 ? #76",
+      "side": "Белые начинают",
+      "fen": "r4bnr/ppq2Qp1/2pkPn1p/3p4/3P3P/8/PPP5/RNB1K1NR w KQ - 5 15",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c1f4",
+      "solution_moves": [
+        "c1f4"
+      ],
+      "solution_san": "Bf4#",
+      "explanation": "Bf4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01Qv4",
+      "rating": 1091,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e7d6"
+    },
+    {
+      "id": 410076,
+      "title": "Мат в 1 ? #77",
+      "side": "Белые начинают",
+      "fen": "4kr2/1R6/p1pKP3/P4r2/8/8/8/8 w - - 0 50",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b7b8",
+      "solution_moves": [
+        "b7b8"
+      ],
+      "solution_san": "Rb8#",
+      "explanation": "Rb8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01V7x",
+      "rating": 1366,
+      "popularity": 91,
+      "themes": "endgame mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "c5f5"
+    },
+    {
+      "id": 410077,
+      "title": "Мат в 1 ? #78",
+      "side": "Чёрные начинают",
+      "fen": "B2Qnk1r/p1p2pp1/6q1/2b5/1P3B2/2P2Np1/P3P2P/R4R1K b - - 0 19",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g3g2",
+      "solution_moves": [
+        "g3g2"
+      ],
+      "solution_san": "g2#",
+      "explanation": "g2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01Xg6",
+      "rating": 1174,
+      "popularity": 92,
+      "themes": "advancedPawn mate mateIn1 middlegame oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "b2b4"
+    },
+    {
+      "id": 410078,
+      "title": "Мат в 1 ? #79",
+      "side": "Белые начинают",
+      "fen": "rn1qkbnr/ppp1ppp1/3p3p/4N3/2B1P3/8/PPPP1PPP/RNBbK2R w KQkq - 0 5",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c4f7",
+      "solution_moves": [
+        "c4f7"
+      ],
+      "solution_san": "Bxf7#",
+      "explanation": "Bxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01YNx",
+      "rating": 1154,
+      "popularity": 75,
+      "themes": "attackingF2F7 mate mateIn1 oneMove opening",
+      "mating_piece": "b",
+      "source_enabling_move": "g4d1"
+    },
+    {
+      "id": 410079,
+      "title": "Мат в 1 ? #80",
+      "side": "Белые начинают",
+      "fen": "5k2/3R4/3P2K1/6P1/1ppr4/8/8/8 w - - 0 58",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d7d8",
+      "solution_moves": [
+        "d7d8"
+      ],
+      "solution_san": "Rd8#",
+      "explanation": "Rd8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01Zna",
+      "rating": 1445,
+      "popularity": 77,
+      "themes": "endgame master mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "c5c4"
+    },
+    {
+      "id": 410080,
+      "title": "Мат в 1 ? #81",
+      "side": "Белые начинают",
+      "fen": "8/7R/4kp2/2K2Npp/4P3/5P2/8/3r2n1 w - - 4 58",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7e7",
+      "solution_moves": [
+        "h7e7"
+      ],
+      "solution_san": "Re7#",
+      "explanation": "Re7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01eLb",
+      "rating": 1185,
+      "popularity": 95,
+      "themes": "endgame hookMate master mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f7e6"
+    },
+    {
+      "id": 410081,
+      "title": "Мат в 1 ? #82",
+      "side": "Белые начинают",
+      "fen": "r2qkb1r/pp1bpppp/8/1Np5/Q1P5/8/PP1P1PPP/R1B1R1K1 w kq - 0 14",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b5d6",
+      "solution_moves": [
+        "b5d6"
+      ],
+      "solution_san": "Nd6#",
+      "explanation": "Nd6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01fz7",
+      "rating": 1352,
+      "popularity": 89,
+      "themes": "mate mateIn1 middlegame oneMove pin smotheredMate",
+      "mating_piece": "n",
+      "source_enabling_move": "e6d7"
+    },
+    {
+      "id": 410082,
+      "title": "Мат в 1 ? #83",
+      "side": "Чёрные начинают",
+      "fen": "r1b1k1nr/pp1p1pbp/3Pp1p1/2p1P3/4q3/2P5/PP1K2PP/RNBQ1BNR b kq - 0 9",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g7h6",
+      "solution_moves": [
+        "g7h6"
+      ],
+      "solution_san": "Bh6#",
+      "explanation": "Bh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01iN2",
+      "rating": 1562,
+      "popularity": 83,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "b",
+      "source_enabling_move": "d5d6"
+    },
+    {
+      "id": 410083,
+      "title": "Мат в 1 ? #84",
+      "side": "Белые начинают",
+      "fen": "8/1pp2p2/p4qp1/2R4p/kP6/7P/5PP1/1R4K1 w - - 5 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c5a5",
+      "solution_moves": [
+        "c5a5"
+      ],
+      "solution_san": "Ra5#",
+      "explanation": "Ra5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01liD",
+      "rating": 1184,
+      "popularity": 94,
+      "themes": "endgame mate mateIn1 oneMove queenRookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "b5a4"
+    },
+    {
+      "id": 410084,
+      "title": "Мат в 1 ? #85",
+      "side": "Белые начинают",
+      "fen": "r1bq3r/1ppkbQp1/p1n1p2p/3n1p2/3PN3/2PB2B1/PP3PPP/R3K1NR w KQ - 4 12",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e4c5",
+      "solution_moves": [
+        "e4c5"
+      ],
+      "solution_san": "Nc5#",
+      "explanation": "Nc5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01naC",
+      "rating": 1243,
+      "popularity": 93,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f8e7"
+    },
+    {
+      "id": 410085,
+      "title": "Мат в 1 ? #86",
+      "side": "Чёрные начинают",
+      "fen": "8/R6p/1p4k1/4p3/5n2/PN2KP2/2r4P/8 b - - 0 32",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c2e2",
+      "solution_moves": [
+        "c2e2"
+      ],
+      "solution_san": "Re2#",
+      "explanation": "Re2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01our",
+      "rating": 1471,
+      "popularity": 71,
+      "themes": "endgame hookMate mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f7a7"
+    },
+    {
+      "id": 410086,
+      "title": "Мат в 1 ? #87",
+      "side": "Чёрные начинают",
+      "fen": "1r6/p1p2n2/1pk2Pp1/6r1/8/2N5/PPP4K/3R2R1 b - - 3 24",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b8h8",
+      "solution_moves": [
+        "b8h8"
+      ],
+      "solution_san": "Rh8#",
+      "explanation": "Rh8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "01p5M",
+      "rating": 1190,
+      "popularity": 96,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f1g1"
+    },
+    {
+      "id": 410087,
+      "title": "Мат в 1 ? #88",
+      "side": "Чёрные начинают",
+      "fen": "r4r1k/ppp1N1pp/1b1p1p2/8/4B3/2P2q1b/P1QB1P1P/R3R1K1 b - - 1 21",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b6f2",
+      "solution_moves": [
+        "b6f2"
+      ],
+      "solution_san": "Bxf2#",
+      "explanation": "Bxf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "020Gj",
+      "rating": 1918,
+      "popularity": 88,
+      "themes": "kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "d3e4"
+    },
+    {
+      "id": 410088,
+      "title": "Мат в 1 ? #89",
+      "side": "Чёрные начинают",
+      "fen": "2r1r1k1/1b3pp1/pp6/2bp1Q2/3B4/1P2PNnp/P4P1P/2R2RKB b - - 0 26",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g3e2",
+      "solution_moves": [
+        "g3e2"
+      ],
+      "solution_san": "Ne2#",
+      "explanation": "Ne2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0213A",
+      "rating": 1178,
+      "popularity": 100,
+      "themes": "master mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "d3f5"
+    },
+    {
+      "id": 410089,
+      "title": "Мат в 1 ? #90",
+      "side": "Чёрные начинают",
+      "fen": "r7/bp6/4kNQ1/1b2Pp1p/p2R1P1N/P1q5/5KPP/7R b - - 6 31",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a7d4",
+      "solution_moves": [
+        "a7d4"
+      ],
+      "solution_san": "Bxd4#",
+      "explanation": "Bxd4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "021U1",
+      "rating": 1571,
+      "popularity": 94,
+      "themes": "hangingPiece master mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "f3f2"
+    },
+    {
+      "id": 410090,
+      "title": "Мат в 1 ? #91",
+      "side": "Белые начинают",
+      "fen": "1r6/6b1/4R3/2p3pp/3k1p2/P1N5/2K2PPP/8 w - - 2 44",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e6e4",
+      "solution_moves": [
+        "e6e4"
+      ],
+      "solution_san": "Re4#",
+      "explanation": "Re4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "022JP",
+      "rating": 1364,
+      "popularity": 94,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f8g7"
+    },
+    {
+      "id": 410091,
+      "title": "Мат в 1 ? #92",
+      "side": "Белые начинают",
+      "fen": "r1bqkbr1/pp2np1N/3p2pp/4n3/4P3/8/PPP2PPP/RN1QKB1R w KQq - 0 11",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7f6",
+      "solution_moves": [
+        "h7f6"
+      ],
+      "solution_san": "Nf6#",
+      "explanation": "Nf6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "023WK",
+      "rating": 1451,
+      "popularity": 76,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "n",
+      "source_enabling_move": "c6e5"
+    },
+    {
+      "id": 410092,
+      "title": "Мат в 1 ? #93",
+      "side": "Чёрные начинают",
+      "fen": "4kb2/Bp6/p4p2/4p3/8/2PQK1P1/PP5r/3R3q b - - 8 29",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f8h6",
+      "solution_moves": [
+        "f8h6"
+      ],
+      "solution_san": "Bh6#",
+      "explanation": "Bh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "024LS",
+      "rating": 1253,
+      "popularity": 84,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "f2e3"
+    },
+    {
+      "id": 410093,
+      "title": "Мат в 1 ? #94",
+      "side": "Белые начинают",
+      "fen": "r2qnr1k/pppb2pp/2n4B/3Nb3/8/P5QP/1PP1B1P1/R4RK1 w - - 0 19",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f1f8",
+      "solution_moves": [
+        "f1f8"
+      ],
+      "solution_san": "Rxf8#",
+      "explanation": "Rxf8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0257T",
+      "rating": 1465,
+      "popularity": 92,
+      "themes": "hangingPiece kingsideAttack mate mateIn1 middlegame oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "f6e5"
+    },
+    {
+      "id": 410094,
+      "title": "Мат в 1 ? #95",
+      "side": "Чёрные начинают",
+      "fen": "5r2/1p2k1p1/2p3R1/p2pP1R1/3P4/2PK4/PP3r2/8 b - - 8 39",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f8f3",
+      "solution_moves": [
+        "f8f3"
+      ],
+      "solution_san": "R8f3#",
+      "explanation": "R8f3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "027Ae",
+      "rating": 1080,
+      "popularity": 89,
+      "themes": "endgame mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "r",
+      "source_enabling_move": "e2d3"
+    },
+    {
+      "id": 410095,
+      "title": "Мат в 1 ? #96",
+      "side": "Чёрные начинают",
+      "fen": "2Q5/4R3/5k2/1B1p4/N2Ppn2/4K3/2r5/8 b - - 0 54",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f4g2",
+      "solution_moves": [
+        "f4g2"
+      ],
+      "solution_san": "Ng2#",
+      "explanation": "Ng2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02Am1",
+      "rating": 1855,
+      "popularity": 95,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "c7c8q"
+    },
+    {
+      "id": 410096,
+      "title": "Мат в 1 ? #97",
+      "side": "Белые начинают",
+      "fen": "8/5p1R/3bpkP1/3p4/5P2/4r3/2B5/6K1 w - - 1 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7f7",
+      "solution_moves": [
+        "h7f7"
+      ],
+      "solution_san": "Rxf7#",
+      "explanation": "Rxf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02DSN",
+      "rating": 1336,
+      "popularity": 80,
+      "themes": "endgame epauletteMate mate mateIn1 oneMove pillsburysMate",
+      "mating_piece": "r",
+      "source_enabling_move": "e7f6"
+    },
+    {
+      "id": 410097,
+      "title": "Мат в 1 ? #98",
+      "side": "Чёрные начинают",
+      "fen": "1Q4r1/8/2B5/8/3k3p/3pp2P/1R6/4K3 b - - 0 53",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g8g1",
+      "solution_moves": [
+        "g8g1"
+      ],
+      "solution_san": "Rg1#",
+      "explanation": "Rg1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02EUf",
+      "rating": 1195,
+      "popularity": 100,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "r",
+      "source_enabling_move": "b7b8q"
+    },
+    {
+      "id": 410098,
+      "title": "Мат в 1 ? #99",
+      "side": "Белые начинают",
+      "fen": "rr1k4/2p2PQ1/2n5/2n1p1p1/2Pp4/p2P4/P4PK1/8 w - - 1 40",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f7f8r",
+      "solution_moves": [
+        "f7f8q",
+        "f7f8r"
+      ],
+      "solution_san": "f8=R#",
+      "explanation": "f8=R# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02I5f",
+      "rating": 1211,
+      "popularity": 93,
+      "themes": "advancedPawn endgame master mate mateIn1 oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "e8d8"
+    },
+    {
+      "id": 410099,
+      "title": "Мат в 1 ? #100",
+      "side": "Белые начинают",
+      "fen": "Q7/6pk/7p/6PP/8/1q6/p4PK1/8 w - - 0 40",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5g6",
+      "solution_moves": [
+        "g5g6"
+      ],
+      "solution_san": "g6#",
+      "explanation": "g6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02SWp",
+      "rating": 1276,
+      "popularity": 92,
+      "themes": "endgame master mate mateIn1 oneMove queenEndgame",
+      "mating_piece": "p",
+      "source_enabling_move": "a3a2"
+    },
+    {
+      "id": 410100,
+      "title": "Мат в 1 ? #101",
+      "side": "Белые начинают",
+      "fen": "3r4/3p3R/3Pk1p1/3NPn2/pp1r1P2/3R4/PK6/8 w - - 8 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d5c7",
+      "solution_moves": [
+        "d5c7"
+      ],
+      "solution_san": "Nc7#",
+      "explanation": "Nc7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02Sw6",
+      "rating": 1616,
+      "popularity": 71,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "c4d4"
+    },
+    {
+      "id": 410101,
+      "title": "Мат в 1 ? #102",
+      "side": "Белые начинают",
+      "fen": "3rkb1r/pp1bnppp/2n5/2pBP3/4NP2/5N2/PP4PP/R1B1K2R w KQk - 7 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e4d6",
+      "solution_moves": [
+        "e4d6"
+      ],
+      "solution_san": "Nd6#",
+      "explanation": "Nd6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02U15",
+      "rating": 1139,
+      "popularity": 97,
+      "themes": "mate mateIn1 oneMove opening smotheredMate",
+      "mating_piece": "n",
+      "source_enabling_move": "g8e7"
+    },
+    {
+      "id": 410102,
+      "title": "Мат в 1 ? #103",
+      "side": "Белые начинают",
+      "fen": "r6k/1pq3pp/p1n5/4Np2/7Q/1B6/PP3PPP/3b2K1 w - - 0 24",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e5g6",
+      "solution_moves": [
+        "e5g6"
+      ],
+      "solution_san": "Ng6#",
+      "explanation": "Ng6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02btz",
+      "rating": 1564,
+      "popularity": 98,
+      "themes": "mate mateIn1 middlegame oneMove pin",
+      "mating_piece": "n",
+      "source_enabling_move": "h5d1"
+    },
+    {
+      "id": 410103,
+      "title": "Мат в 1 ? #104",
+      "side": "Чёрные начинают",
+      "fen": "7k/6R1/p6p/1p1p4/1P4Q1/P1r1q3/4p1PP/5R1K b - - 0 43",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e2f1q",
+      "solution_moves": [
+        "e2f1q",
+        "e2f1r"
+      ],
+      "solution_san": "exf1=Q#",
+      "explanation": "exf1=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02eeX",
+      "rating": 1271,
+      "popularity": 89,
+      "themes": "advancedPawn endgame mate mateIn1 oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "e1f1"
+    },
+    {
+      "id": 410104,
+      "title": "Мат в 1 ? #105",
+      "side": "Белые начинают",
+      "fen": "r1b2k1r/ppp1n2p/2pb1Np1/6B1/2B5/5P2/PPP2P1P/R3K1R1 w Q - 5 15",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5h6",
+      "solution_moves": [
+        "g5h6"
+      ],
+      "solution_san": "Bh6#",
+      "explanation": "Bh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02kVm",
+      "rating": 1495,
+      "popularity": 89,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "f7f8"
+    },
+    {
+      "id": 410105,
+      "title": "Мат в 1 ? #106",
+      "side": "Чёрные начинают",
+      "fen": "r1b1k1r1/ppp2p1p/2q2B2/2b1Pn2/1PP2K1N/8/P5PP/R2Q1B1R b q - 2 17",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c5e3",
+      "solution_moves": [
+        "c5e3"
+      ],
+      "solution_san": "Be3#",
+      "explanation": "Be3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "02uft",
+      "rating": 1255,
+      "popularity": 96,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e4f4"
+    },
+    {
+      "id": 410106,
+      "title": "Мат в 1 ? #107",
+      "side": "Белые начинают",
+      "fen": "r2q3r/pppbk1p1/2n1pbQp/8/8/P1N1BN1P/1PP2PP1/R3K2R w KQ - 4 15",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e3c5",
+      "solution_moves": [
+        "e3c5"
+      ],
+      "solution_san": "Bc5#",
+      "explanation": "Bc5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0300T",
+      "rating": 1112,
+      "popularity": 78,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e8e7"
+    },
+    {
+      "id": 410107,
+      "title": "Мат в 1 ? #108",
+      "side": "Белые начинают",
+      "fen": "r1bqk1r1/4npQN/1pn1p1p1/p1p5/4P3/P1PP4/B1P2PPP/R3K2R w KQq - 7 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7f6",
+      "solution_moves": [
+        "h7f6"
+      ],
+      "solution_san": "Nf6#",
+      "explanation": "Nf6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03I4i",
+      "rating": 1110,
+      "popularity": 99,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f8g8"
+    },
+    {
+      "id": 410108,
+      "title": "Мат в 1 ? #109",
+      "side": "Белые начинают",
+      "fen": "8/4RNkP/1r6/6K1/8/8/8/1q6 w - - 2 57",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7h8q",
+      "solution_moves": [
+        "h7h8q"
+      ],
+      "solution_san": "h8=Q#",
+      "explanation": "h8=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03SLJ",
+      "rating": 1702,
+      "popularity": 89,
+      "themes": "advancedPawn endgame mate mateIn1 oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "h8g7"
+    },
+    {
+      "id": 410109,
+      "title": "Мат в 1 ? #110",
+      "side": "Чёрные начинают",
+      "fen": "r4rk1/ppp3pp/2n5/1B1p4/3P3n/2P1qNPb/PP5P/R1BQ1R1K b - - 4 19",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h3g2",
+      "solution_moves": [
+        "h3g2"
+      ],
+      "solution_san": "Bg2#",
+      "explanation": "Bg2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03US3",
+      "rating": 1495,
+      "popularity": 87,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "d2f3"
+    },
+    {
+      "id": 410110,
+      "title": "Мат в 1 ? #111",
+      "side": "Белые начинают",
+      "fen": "r1b1k2r/pp5p/2nQ2p1/q4pN1/4p3/1B2P3/P2P1PPP/bN2K2R w Kkq - 0 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b3f7",
+      "solution_moves": [
+        "b3f7"
+      ],
+      "solution_san": "Bf7#",
+      "explanation": "Bf7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03YMa",
+      "rating": 1139,
+      "popularity": 94,
+      "themes": "balestraMate mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "b2a1"
+    },
+    {
+      "id": 410111,
+      "title": "Мат в 1 ? #112",
+      "side": "Чёрные начинают",
+      "fen": "r3k2r/ppp1Npp1/1bnp4/4p2b/2B1P1n1/1QPP3P/PP1N2P1/R1B1RK2 b kq - 0 14",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g4h2",
+      "solution_moves": [
+        "g4h2"
+      ],
+      "solution_san": "Nh2#",
+      "explanation": "Nh2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03YTT",
+      "rating": 1160,
+      "popularity": 95,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f5e7"
+    },
+    {
+      "id": 410112,
+      "title": "Мат в 1 ? #113",
+      "side": "Чёрные начинают",
+      "fen": "8/4kp2/1b4p1/p1pBP2p/1pK1PP1P/1P4Pb/P7/2B5 b - - 7 38",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h3f1",
+      "solution_moves": [
+        "h3f1"
+      ],
+      "solution_san": "Bf1#",
+      "explanation": "Bf1# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03gRv",
+      "rating": 1370,
+      "popularity": 93,
+      "themes": "bishopEndgame endgame master mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "b2c1"
+    },
+    {
+      "id": 410113,
+      "title": "Мат в 1 ? #114",
+      "side": "Белые начинают",
+      "fen": "8/5n2/p3p3/1p6/1Pk3N1/2P4p/P2K1P2/8 w - - 0 45",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g4e3",
+      "solution_moves": [
+        "g4e3"
+      ],
+      "solution_san": "Ne3#",
+      "explanation": "Ne3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03pLv",
+      "rating": 1562,
+      "popularity": 88,
+      "themes": "endgame knightEndgame master mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "h4h3"
+    },
+    {
+      "id": 410114,
+      "title": "Мат в 1 ? #115",
+      "side": "Чёрные начинают",
+      "fen": "b6r/4Q1p1/p3p1k1/2p2p1p/6R1/P5BK/1P5P/8 b - - 0 38",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5g4",
+      "solution_moves": [
+        "h5g4"
+      ],
+      "solution_san": "hxg4#",
+      "explanation": "hxg4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03rAR",
+      "rating": 1181,
+      "popularity": 93,
+      "themes": "discoveredCheck doubleCheck endgame mate mateIn1 oneMove pillsburysMate",
+      "mating_piece": "p",
+      "source_enabling_move": "f4g4"
+    },
+    {
+      "id": 410115,
+      "title": "Мат в 1 ? #116",
+      "side": "Чёрные начинают",
+      "fen": "r1b1k2r/ppppqppp/8/4n3/1bP5/1P3N1P/P2NPPP1/R2QKB1R b KQkq - 4 9",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e5d3",
+      "solution_moves": [
+        "e5d3"
+      ],
+      "solution_san": "Nd3#",
+      "explanation": "Nd3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "03sho",
+      "rating": 1404,
+      "popularity": 84,
+      "themes": "mate mateIn1 oneMove opening pin smotheredMate",
+      "mating_piece": "n",
+      "source_enabling_move": "g1f3"
+    },
+    {
+      "id": 410116,
+      "title": "Мат в 1 ? #117",
+      "side": "Белые начинают",
+      "fen": "r5k1/p2r3p/1p4p1/3q1N2/8/8/PQ4PP/5R1K w - - 0 33",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f5h6",
+      "solution_moves": [
+        "f5h6"
+      ],
+      "solution_san": "Nh6#",
+      "explanation": "Nh6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "042Fz",
+      "rating": 1290,
+      "popularity": 76,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "f7g6"
+    },
+    {
+      "id": 410117,
+      "title": "Мат в 1 ? #118",
+      "side": "Чёрные начинают",
+      "fen": "r1b2rk1/pppp1pp1/1bn4p/7n/2B1PN1q/P1NP4/1PPB2PP/R2Q1R1K b - - 6 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5g3",
+      "solution_moves": [
+        "h5g3"
+      ],
+      "solution_san": "Ng3#",
+      "explanation": "Ng3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "046t6",
+      "rating": 1204,
+      "popularity": 93,
+      "themes": "mate mateIn1 oneMove opening pin",
+      "mating_piece": "n",
+      "source_enabling_move": "e2f4"
+    },
+    {
+      "id": 410118,
+      "title": "Мат в 1 ? #119",
+      "side": "Чёрные начинают",
+      "fen": "r4rk1/6pp/p3pp2/1pRq2n1/3P4/3NP1P1/PP3P1P/3Q1RK1 b - - 3 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g5h3",
+      "solution_moves": [
+        "g5h3"
+      ],
+      "solution_san": "Nh3#",
+      "explanation": "Nh3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04LbM",
+      "rating": 1311,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "c7c5"
+    },
+    {
+      "id": 410119,
+      "title": "Мат в 1 ? #120",
+      "side": "Чёрные начинают",
+      "fen": "2k2b1r/1p3ppp/p1n5/B2r1P2/1P2nQ2/8/P1Pp1PPP/R2K3R b - - 1 18",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e4c3",
+      "solution_moves": [
+        "e4c3"
+      ],
+      "solution_san": "Nc3#",
+      "explanation": "Nc3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04LeC",
+      "rating": 1372,
+      "popularity": 71,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "e1d1"
+    },
+    {
+      "id": 410120,
+      "title": "Мат в 1 ? #121",
+      "side": "Чёрные начинают",
+      "fen": "6k1/pp6/8/5b2/1pP2P2/1P5N/Pr1p4/R2K3R b - - 0 39",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f5g4",
+      "solution_moves": [
+        "f5g4"
+      ],
+      "solution_san": "Bg4#",
+      "explanation": "Bg4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04SwP",
+      "rating": 1393,
+      "popularity": 93,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "g5h3"
+    },
+    {
+      "id": 410121,
+      "title": "Мат в 1 ? #122",
+      "side": "Чёрные начинают",
+      "fen": "4r3/ppR5/3P2pk/3N2p1/2Bb2n1/1P5P/P5P1/1R3K2 b - - 2 32",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g4h2",
+      "solution_moves": [
+        "g4h2"
+      ],
+      "solution_san": "Nh2#",
+      "explanation": "Nh2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04ZIs",
+      "rating": 1358,
+      "popularity": 94,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "n",
+      "source_enabling_move": "g1f1"
+    },
+    {
+      "id": 410122,
+      "title": "Мат в 1 ? #123",
+      "side": "Чёрные начинают",
+      "fen": "8/8/2R2N2/4P1k1/3PK1P1/r7/4b3/8 b - - 0 52",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e2f3",
+      "solution_moves": [
+        "e2f3"
+      ],
+      "solution_san": "Bf3#",
+      "explanation": "Bf3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04vvt",
+      "rating": 1289,
+      "popularity": 91,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "e6c6"
+    },
+    {
+      "id": 410123,
+      "title": "Мат в 1 ? #124",
+      "side": "Белые начинают",
+      "fen": "r1b2r2/ppp1Npbk/3p1np1/6BP/3pqP2/4P2R/PPP1Q3/R3K1N1 w Q - 1 17",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h5g6",
+      "solution_moves": [
+        "h5g6"
+      ],
+      "solution_san": "hxg6#",
+      "explanation": "hxg6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "04zhG",
+      "rating": 1119,
+      "popularity": 95,
+      "themes": "discoveredCheck doubleCheck mate mateIn1 middlegame oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "d7f6"
+    },
+    {
+      "id": 410124,
+      "title": "Мат в 1 ? #125",
+      "side": "Чёрные начинают",
+      "fen": "rnbBk2r/ppp3pp/8/2bp4/4n3/2N2N2/PPP1PPPP/R2QKB1R b KQkq - 0 7",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c5f2",
+      "solution_moves": [
+        "c5f2"
+      ],
+      "solution_san": "Bxf2#",
+      "explanation": "Bxf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0507E",
+      "rating": 1136,
+      "popularity": 97,
+      "themes": "attackingF2F7 mate mateIn1 oneMove opening",
+      "mating_piece": "b",
+      "source_enabling_move": "g5d8"
+    },
+    {
+      "id": 410125,
+      "title": "Мат в 1 ? #126",
+      "side": "Белые начинают",
+      "fen": "r1b2r2/2q2p1p/p1n1pkpQ/1pp1n3/3pPB2/3B4/PPP2PPP/R3R1K1 w - - 0 19",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f4g5",
+      "solution_moves": [
+        "f4g5"
+      ],
+      "solution_san": "Bg5#",
+      "explanation": "Bg5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "052F6",
+      "rating": 1511,
+      "popularity": 88,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "b",
+      "source_enabling_move": "g7f6"
+    },
+    {
+      "id": 410126,
+      "title": "Мат в 1 ? #127",
+      "side": "Белые начинают",
+      "fen": "4nk2/3bq3/p4P2/1p3N2/3p1PP1/8/BP3K2/8 w - - 0 46",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f6e7",
+      "solution_moves": [
+        "f6e7"
+      ],
+      "solution_san": "fxe7#",
+      "explanation": "fxe7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "05PKP",
+      "rating": 1332,
+      "popularity": 88,
+      "themes": "advancedPawn endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "e4e7"
+    },
+    {
+      "id": 410127,
+      "title": "Мат в 1 ? #128",
+      "side": "Белые начинают",
+      "fen": "8/1p4R1/1p2rB1p/2b4k/P5p1/4Pp1P/5P2/6K1 w - - 0 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h3g4",
+      "solution_moves": [
+        "h3g4"
+      ],
+      "solution_san": "hxg4#",
+      "explanation": "hxg4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "06Cgs",
+      "rating": 1068,
+      "popularity": 93,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "f5g4"
+    },
+    {
+      "id": 410128,
+      "title": "Мат в 1 ? #129",
+      "side": "Чёрные начинают",
+      "fen": "R7/8/2p2kp1/4n3/P1P1PK2/r6P/3N2P1/8 b - - 8 39",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6g5",
+      "solution_moves": [
+        "g6g5"
+      ],
+      "solution_san": "g5#",
+      "explanation": "g5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "07AfM",
+      "rating": 1435,
+      "popularity": 93,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "e3f4"
+    },
+    {
+      "id": 410129,
+      "title": "Мат в 1 ? #130",
+      "side": "Белые начинают",
+      "fen": "r1bq1b1r/ppp2Q1p/2n2n2/4Nk2/3Pp3/8/PPP2PPP/R1B1K2R w KQ - 4 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g2g4",
+      "solution_moves": [
+        "g2g4"
+      ],
+      "solution_san": "g4#",
+      "explanation": "g4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "07IW0",
+      "rating": 1407,
+      "popularity": 95,
+      "themes": "master mate mateIn1 oneMove opening",
+      "mating_piece": "p",
+      "source_enabling_move": "e6f5"
+    },
+    {
+      "id": 410130,
+      "title": "Мат в 1 ? #131",
+      "side": "Чёрные начинают",
+      "fen": "r3kb1r/1p3ppp/8/p7/1nP1n1b1/PK2BN2/1P3PPP/RN3B1R b kq - 0 12",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a5a4",
+      "solution_moves": [
+        "a5a4"
+      ],
+      "solution_san": "a4#",
+      "explanation": "a4# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "07zgd",
+      "rating": 1548,
+      "popularity": 93,
+      "themes": "mate mateIn1 oneMove opening",
+      "mating_piece": "p",
+      "source_enabling_move": "a2a3"
+    },
+    {
+      "id": 410131,
+      "title": "Мат в 1 ? #132",
+      "side": "Белые начинают",
+      "fen": "6r1/8/p7/3q4/Ppk3pP/4Q3/1P3PPK/8 w - - 0 41",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b2b3",
+      "solution_moves": [
+        "b2b3"
+      ],
+      "solution_san": "b3#",
+      "explanation": "b3# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "080I6",
+      "rating": 1502,
+      "popularity": 80,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "d1d5"
+    },
+    {
+      "id": 410132,
+      "title": "Мат в 1 ? #133",
+      "side": "Белые начинают",
+      "fen": "6rk/p1q4P/8/2p5/3p1b2/1P6/1PP2P2/1n1K2R1 w - - 0 33",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7g8q",
+      "solution_moves": [
+        "h7g8q"
+      ],
+      "solution_san": "hxg8=Q#",
+      "explanation": "hxg8=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "08V6S",
+      "rating": 1488,
+      "popularity": 92,
+      "themes": "advancedPawn endgame mate mateIn1 oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "e8g8"
+    },
+    {
+      "id": 410133,
+      "title": "Мат в 1 ? #134",
+      "side": "Чёрные начинают",
+      "fen": "Q7/2pqbppk/8/3pP3/3P1K1p/P3BB2/1r4PP/1R6 b - - 1 30",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g7g5",
+      "solution_moves": [
+        "g7g5"
+      ],
+      "solution_san": "g5#",
+      "explanation": "g5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "08fnu",
+      "rating": 1255,
+      "popularity": 81,
+      "themes": "mate mateIn1 middlegame oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "g3f4"
+    },
+    {
+      "id": 410134,
+      "title": "Мат в 1 ? #135",
+      "side": "Чёрные начинают",
+      "fen": "r1b1k1nr/pp1p1ppp/8/4P3/1Q6/8/P1p1PPPP/1N2KB1R b Kkq - 0 13",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c2c1q",
+      "solution_moves": [
+        "c2c1q"
+      ],
+      "solution_san": "c1=Q#",
+      "explanation": "c1=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "099Yk",
+      "rating": 1182,
+      "popularity": 89,
+      "themes": "advancedPawn mate mateIn1 middlegame oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "b3b4"
+    },
+    {
+      "id": 410135,
+      "title": "Мат в 1 ? #136",
+      "side": "Чёрные начинают",
+      "fen": "5r2/6bp/p1p1k1p1/1p2P1B1/3PR1KP/PPP1Rr2/8/8 b - - 2 34",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7h5",
+      "solution_moves": [
+        "h7h5"
+      ],
+      "solution_san": "h5#",
+      "explanation": "h5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0BMtf",
+      "rating": 1407,
+      "popularity": 92,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "e2e3"
+    },
+    {
+      "id": 410136,
+      "title": "Мат в 1 ? #137",
+      "side": "Чёрные начинают",
+      "fen": "8/8/4bpp1/pN1kP2p/2p2K2/P1Pr3P/1P2R1P1/8 b - - 0 38",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "g6g5",
+      "solution_moves": [
+        "g6g5"
+      ],
+      "solution_san": "g5#",
+      "explanation": "g5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0BnC0",
+      "rating": 1073,
+      "popularity": 100,
+      "themes": "endgame master mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "d6b5"
+    },
+    {
+      "id": 410137,
+      "title": "Мат в 1 ? #138",
+      "side": "Чёрные начинают",
+      "fen": "8/P3Q3/8/5p1k/4bP1P/8/r1p5/6K1 b - - 2 52",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c2c1q",
+      "solution_moves": [
+        "c2c1q",
+        "c2c1r"
+      ],
+      "solution_san": "c1=Q#",
+      "explanation": "c1=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0DQgB",
+      "rating": 1506,
+      "popularity": 85,
+      "themes": "advancedPawn endgame mate mateIn1 oneMove promotion",
+      "mating_piece": "p",
+      "source_enabling_move": "c5e7"
+    },
+    {
+      "id": 410138,
+      "title": "Мат в 1 ? #139",
+      "side": "Чёрные начинают",
+      "fen": "6k1/1R5p/5pp1/1P6/3N1PKP/r3r1PR/8/8 b - - 2 42",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7h5",
+      "solution_moves": [
+        "h7h5"
+      ],
+      "solution_san": "h5#",
+      "explanation": "h5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0FpK9",
+      "rating": 1618,
+      "popularity": 90,
+      "themes": "endgame mate mateIn1 oneMove",
+      "mating_piece": "p",
+      "source_enabling_move": "h1h3"
+    },
+    {
+      "id": 410139,
+      "title": "Мат в 1 ? #140",
+      "side": "Чёрные начинают",
+      "fen": "2r1kr2/4n2Q/6p1/pp2p3/4P3/4N1P1/Pp1R1P2/1KR5 b - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "b2c1q",
+      "solution_moves": [
+        "b2c1q"
+      ],
+      "solution_san": "bxc1=Q#",
+      "explanation": "bxc1=Q# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "0GJia",
+      "rating": 1473,
+      "popularity": 91,
+      "themes": "advancedPawn mate mateIn1 middlegame oneMove promotion queensideAttack",
+      "mating_piece": "p",
+      "source_enabling_move": "d1c1"
+    },
+    {
+      "id": 410140,
+      "title": "Мат в 1 ? #141",
+      "side": "Чёрные начинают",
+      "fen": "8/7r/5ppk/p2B2q1/1p2P3/8/P6K/6QR b - - 8 37",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h6g7",
+      "solution_moves": [
+        "h6g7"
+      ],
+      "solution_san": "Kg7#",
+      "explanation": "Kg7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "4BJaJ",
+      "rating": 1450,
+      "popularity": 80,
+      "themes": "discoveredAttack discoveredCheck endgame master mate mateIn1 oneMove",
+      "mating_piece": "k",
+      "source_enabling_move": "a7g1"
+    },
+    {
+      "id": 410141,
+      "title": "Мат в 1 ? #142",
+      "side": "Чёрные начинают",
+      "fen": "r3k2r/pp3ppp/2p1n3/4bb2/8/4PPP1/PP1KQq1P/RNB2BNR b kq - 6 15",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "e8c8",
+      "solution_moves": [
+        "a8d8",
+        "e8c8"
+      ],
+      "solution_san": "O-O-O#",
+      "explanation": "O-O-O# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "4byem",
+      "rating": 1397,
+      "popularity": 97,
+      "themes": "castling discoveredAttack discoveredCheck mate mateIn1 middlegame oneMove pillsburysMate",
+      "mating_piece": "k",
+      "source_enabling_move": "c3d2"
+    },
+    {
+      "id": 410142,
+      "title": "Мат в 1 ? #143",
+      "side": "Чёрные начинают",
+      "fen": "8/2RR2pr/2p2p1k/1p1b4/3P4/P5PK/1P3P2/8 b - - 0 43",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h6g5",
+      "solution_moves": [
+        "h6g5"
+      ],
+      "solution_san": "Kg5#",
+      "explanation": "Kg5# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "5qWeq",
+      "rating": 1759,
+      "popularity": 85,
+      "themes": "discoveredAttack discoveredCheck endgame master mate mateIn1 oneMove pillsburysMate",
+      "mating_piece": "k",
+      "source_enabling_move": "h2h3"
+    },
+    {
+      "id": 410143,
+      "title": "Мат в 1 ? #144",
+      "side": "Чёрные начинают",
+      "fen": "r7/kp5R/1p3B2/1rR1P2P/8/2P5/8/K7 b - - 0 40",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "a7b8",
+      "solution_moves": [
+        "a7b8"
+      ],
+      "solution_san": "Kb8#",
+      "explanation": "Kb8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "7tGIc",
+      "rating": 1469,
+      "popularity": 89,
+      "themes": "discoveredAttack discoveredCheck endgame master mate mateIn1 oneMove",
+      "mating_piece": "k",
+      "source_enabling_move": "c7c5"
+    },
+    {
+      "id": 410144,
+      "title": "Мат в 1 ? #145",
+      "side": "Чёрные начинают",
+      "fen": "r1k2K2/5PR1/p7/4pP2/8/8/8/8 b - - 0 52",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c8d7",
+      "solution_moves": [
+        "c8d7"
+      ],
+      "solution_san": "Kd7#",
+      "explanation": "Kd7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "F1pnI",
+      "rating": 1293,
+      "popularity": 95,
+      "themes": "discoveredAttack discoveredCheck endgame master mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "k",
+      "source_enabling_move": "g8f8"
+    },
+    {
+      "id": 410145,
+      "title": "Мат в 1 ? #146",
+      "side": "Чёрные начинают",
+      "fen": "K1kr4/P7/8/5p2/5PP1/8/8/7R b - - 0 58",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "c8c7",
+      "solution_moves": [
+        "c8c7"
+      ],
+      "solution_san": "Kc7#",
+      "explanation": "Kc7# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "Fudb8",
+      "rating": 1125,
+      "popularity": 95,
+      "themes": "discoveredAttack discoveredCheck endgame master mate mateIn1 oneMove rookEndgame",
+      "mating_piece": "k",
+      "source_enabling_move": "h7h1"
+    },
+    {
+      "id": 410146,
+      "title": "Мат в 1 ? #147",
+      "side": "Чёрные начинают",
+      "fen": "7r/1p4p1/1p5k/5pP1/4n1PK/7R/P6P/5B2 b - - 0 48",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h6g6",
+      "solution_moves": [
+        "h6g6"
+      ],
+      "solution_san": "Kg6#",
+      "explanation": "Kg6# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "N8n1a",
+      "rating": 1595,
+      "popularity": 88,
+      "themes": "discoveredAttack endgame mate mateIn1 oneMove",
+      "mating_piece": "k",
+      "source_enabling_move": "f4g5"
+    },
+    {
+      "id": 410147,
+      "title": "Мат в 1 ? #148",
+      "side": "Чёрные начинают",
+      "fen": "7Q/5p2/8/8/8/8/5PP1/2qk1K2 b - - 0 51",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "d1d2",
+      "solution_moves": [
+        "d1d2"
+      ],
+      "solution_san": "Kd2#",
+      "explanation": "Kd2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "UxjJT",
+      "rating": 1367,
+      "popularity": 79,
+      "themes": "discoveredAttack discoveredCheck endgame mate mateIn1 oneMove queenEndgame",
+      "mating_piece": "k",
+      "source_enabling_move": "h7h8q"
+    },
+    {
+      "id": 410148,
+      "title": "Мат в 1 ? #149",
+      "side": "Чёрные начинают",
+      "fen": "8/8/R7/8/4b3/5kp1/8/7K b - - 0 63",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "f3f2",
+      "solution_moves": [
+        "f3f2"
+      ],
+      "solution_san": "Kf2#",
+      "explanation": "Kf2# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "j1TSr",
+      "rating": 1510,
+      "popularity": 96,
+      "themes": "discoveredAttack discoveredCheck endgame mate mateIn1 oneMove",
+      "mating_piece": "k",
+      "source_enabling_move": "g6a6"
+    },
+    {
+      "id": 410149,
+      "title": "Мат в 1 ? #150",
+      "side": "Чёрные начинают",
+      "fen": "7r/p1p4k/1b3Rp1/8/6P1/1P1B4/P1P3P1/1R5K b - - 0 28",
+      "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
+      "solution_move": "h7g8",
+      "solution_moves": [
+        "h7g7",
+        "h7g8"
+      ],
+      "solution_san": "Kg8#",
+      "explanation": "Kg8# ? мат в один ход. Позиция взята из открытой базы задач Lichess и проверена локально.",
+      "source": "Lichess public puzzle database",
+      "lichess_puzzle_id": "mE2UD",
+      "rating": 1071,
+      "popularity": 66,
+      "themes": "discoveredAttack discoveredCheck endgame mate mateIn1 oneMove pillsburysMate",
+      "mating_piece": "k",
+      "source_enabling_move": "h3g4"
+    }
+  ]
+}

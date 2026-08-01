@@ -62,13 +62,12 @@ STATUS_COMPLETED = "completed"
 MOSCOW_OFFSET = timedelta(hours=3)
 MOSCOW_TZ = timezone(MOSCOW_OFFSET)
 LICHESS_PUZZLE_DB_URL = "https://database.lichess.org/lichess_db_puzzle.csv.zst"
-PUZZLE_CACHE_FILENAME = "daily_puzzles_lichess_mate1_verified_300.json"
-PUZZLE_TARGET_COUNT = 300
+PUZZLE_CACHE_FILENAME = "daily_puzzles_lichess_mate1_verified_150.json"
+PUZZLE_TARGET_COUNT = 150
 
 
-# Small offline fallback. On normal startup the app streams the official public
-# Lichess puzzle database, filters mateIn1 puzzles, and verifies every position
-# locally with python-chess.
+# Small offline fallback. The bundled pack contains 150 diverse, locally
+# verified Lichess mate-in-one positions; this list is only an emergency backup.
 DAILY_PUZZLES = [
     {
         "id": 101,
@@ -2019,14 +2018,12 @@ class Database:
         return base / PUZZLE_CACHE_FILENAME
 
     def _load_or_fetch_daily_puzzles(self) -> None:
-        """Load cached verified Lichess mate-in-one puzzles or stream-build them.
+        """Load the bundled diverse mate-in-one pack or stream-build it.
 
         This version deliberately does not use model-generated or hand-written
-        positions. It filters the official public Lichess puzzle database for
-        `mateIn1` puzzles and then verifies every candidate locally:
-        from the FEN position, at least one legal move must immediately give
-        checkmate. The app accepts ANY such checkmating legal move, because in
-        mate-in-one positions several moves can sometimes mate.
+        positions. For the official Lichess CSV format, the first move is the
+        move that creates the puzzle position, so it is applied before showing
+        the board. Every legal immediate checkmate is accepted.
         """
         cache_path = self._puzzle_cache_path()
         bundled_paths = [
@@ -2098,20 +2095,28 @@ class Database:
                         try:
                             rating = int(row.get("Rating") or 0)
                             popularity = int(row.get("Popularity") or 0)
-                            # Keep the first pack friendly and reasonably popular.
-                            if rating and (rating < 600 or rating > 1800):
+                            if rating and (rating < 700 or rating > 2000):
                                 continue
-                            if popularity and popularity < -5:
+                            if popularity and popularity < 25:
                                 continue
-                            fen = (row.get("FEN") or "").strip()
-                            if not fen or fen in seen_fens:
+                            source_fen = (row.get("FEN") or "").strip()
+                            line_moves = (row.get("Moves") or "").split()
+                            if not source_fen or len(line_moves) < 2:
                                 continue
-                            board = chess.Board(fen)
+                            board = chess.Board(source_fen)
+                            enabling_move = chess.Move.from_uci(line_moves[0])
+                            if enabling_move not in board.legal_moves:
+                                continue
+                            board.push(enabling_move)
+                            fen = board.fen()
+                            if fen in seen_fens:
+                                continue
                             mate_moves = self._legal_checkmate_moves(board)
-                            if not mate_moves:
+                            source_solution = line_moves[1].lower()
+                            if not mate_moves or source_solution not in mate_moves:
                                 continue
                             seen_fens.add(fen)
-                            first_move = chess.Move.from_uci(mate_moves[0])
+                            first_move = chess.Move.from_uci(source_solution)
                             solution_san = board.san(first_move)
                             side = "Белые начинают" if board.turn == chess.WHITE else "Чёрные начинают"
                             puzzles.append(
@@ -2121,7 +2126,7 @@ class Database:
                                     "side": side,
                                     "fen": fen,
                                     "question": "Найди мат в 1 ход. Сделай ход прямо на доске.",
-                                    "solution_move": mate_moves[0],
+                                    "solution_move": source_solution,
                                     "solution_moves": mate_moves,
                                     "solution_san": solution_san,
                                     "explanation": f"{solution_san} — один из легальных матующих ходов. Позиция взята из открытой базы задач Lichess и проверена локально.",
@@ -2131,6 +2136,7 @@ class Database:
                                     "popularity": popularity,
                                     "themes": themes,
                                     "game_url": row.get("GameUrl") or "",
+                                    "source_enabling_move": line_moves[0],
                                 }
                             )
                         except Exception:
