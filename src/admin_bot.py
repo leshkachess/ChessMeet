@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import html
 import json
 import os
@@ -10,6 +11,8 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any
+
+from .cities import city_catalog
 
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -110,6 +113,9 @@ class AdminApi:
     async def post(self, path: str, actor_id: int, payload: dict[str, Any] | None = None) -> Any:
         return await self.request("POST", path, actor_id, payload or {})
 
+    async def put(self, path: str, actor_id: int, payload: dict[str, Any] | None = None) -> Any:
+        return await self.request("PUT", path, actor_id, payload or {})
+
     def _download_sync(self, path: str, actor_id: int) -> bytes:
         request = urllib.request.Request(
             self.base_url + path,
@@ -132,6 +138,15 @@ class AdminForm(StatesGroup):
     user_search = State()
     broadcast_text = State()
     broadcast_confirm = State()
+    partner_name = State()
+    partner_city = State()
+    partner_address = State()
+    partner_coordinates = State()
+    partner_description = State()
+    partner_hours = State()
+    partner_priority = State()
+    partner_logo = State()
+    partner_confirm = State()
 
 
 def keyboard(rows: list[list[tuple[str, str]]]) -> InlineKeyboardMarkup:
@@ -424,9 +439,210 @@ async def partner_places(callback: CallbackQuery):
         state = "✓" if place.get("is_active") else "⏸"
         lines.append(f"{state} #{place['id']} {html.escape(place.get('name') or '—')} · {html.escape(place.get('city') or '—')} · выборов {place.get('clicks_count', 0)} · партий {place.get('games_count', 0)}")
     if not places:
-        lines.append("Партнёрских мест пока нет. Добавить их можно через защищённый Admin API.")
-    await callback.message.edit_text("\n".join(lines), reply_markup=back_menu())
+        lines.append("Партнёрских мест пока нет.")
+    rows = [[("➕ Добавить партнёра", "partner:add")]]
+    for place in places[:12]:
+        action = "⏸ Выключить" if place.get("is_active") else "▶️ Включить"
+        rows.append([(f"{action} · {str(place.get('name') or '—')[:28]}", f"partner:toggle:{place['id']}")])
+    rows.append([("← Главное меню", "menu:home")])
+    await callback.message.edit_text("\n".join(lines), reply_markup=keyboard(rows))
     await callback.answer()
+
+
+def partner_cancel_keyboard() -> InlineKeyboardMarkup:
+    return keyboard([[('Отмена', 'partner:cancel')]])
+
+
+@router.callback_query(F.data == "partner:add")
+async def partner_add(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await state.set_state(AdminForm.partner_name)
+    await callback.message.edit_text(
+        "📍 <b>Новый партнёр · 1/8</b>\n\nВведи название места:",
+        reply_markup=partner_cancel_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminForm.partner_name)
+async def partner_name(message: Message, state: FSMContext):
+    value = (message.text or "").strip()
+    if not value or len(value) > 120:
+        await message.answer("Название должно содержать от 1 до 120 символов.")
+        return
+    await state.update_data(name=value)
+    await state.set_state(AdminForm.partner_city)
+    cities = city_catalog()
+    rows = [[(city["name"], f"partner:city:{city['id']}")] for city in cities]
+    rows.append([("Отмена", "partner:cancel")])
+    await message.answer("📍 <b>Новый партнёр · 2/8</b>\n\nВыбери город:", reply_markup=keyboard(rows))
+
+
+@router.callback_query(AdminForm.partner_city, F.data.startswith("partner:city:"))
+async def partner_city(callback: CallbackQuery, state: FSMContext):
+    city_id = callback.data.rsplit(":", 1)[-1]
+    city = next((item for item in city_catalog() if item["id"] == city_id), None)
+    if not city:
+        await callback.answer("Город не найден", show_alert=True)
+        return
+    await state.update_data(city=city["name"])
+    await state.set_state(AdminForm.partner_address)
+    await callback.message.edit_text(
+        "📍 <b>Новый партнёр · 3/8</b>\n\nВведи полный адрес:",
+        reply_markup=partner_cancel_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminForm.partner_address)
+async def partner_address(message: Message, state: FSMContext):
+    value = (message.text or "").strip()
+    if not value or len(value) > 200:
+        await message.answer("Введи адрес длиной до 200 символов.")
+        return
+    await state.update_data(address=value)
+    await state.set_state(AdminForm.partner_coordinates)
+    await message.answer(
+        "📍 <b>Новый партнёр · 4/8</b>\n\n"
+        "Пришли координаты через запятую, например:\n<code>53.9006, 27.5590</code>\n\n"
+        "Их можно скопировать после нажатия на точку в OpenStreetMap.",
+        reply_markup=partner_cancel_keyboard(),
+    )
+
+
+@router.message(AdminForm.partner_coordinates)
+async def partner_coordinates(message: Message, state: FSMContext):
+    raw = (message.text or "").strip().replace(";", ",")
+    try:
+        latitude, longitude = (float(item.strip()) for item in raw.split(",", 1))
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            raise ValueError
+    except (ValueError, TypeError):
+        await message.answer("Не удалось распознать координаты. Пример: <code>53.9006, 27.5590</code>")
+        return
+    map_url = f"https://www.openstreetmap.org/?mlat={latitude:.6f}&mlon={longitude:.6f}#map=17/{latitude:.6f}/{longitude:.6f}"
+    await state.update_data(latitude=latitude, longitude=longitude, map_url=map_url)
+    await state.set_state(AdminForm.partner_description)
+    await message.answer(
+        "📍 <b>Новый партнёр · 5/8</b>\n\nНапиши короткое описание места (до 500 символов):",
+        reply_markup=partner_cancel_keyboard(),
+    )
+
+
+@router.message(AdminForm.partner_description)
+async def partner_description(message: Message, state: FSMContext):
+    value = (message.text or "").strip()
+    if not value or len(value) > 500:
+        await message.answer("Описание должно содержать от 1 до 500 символов.")
+        return
+    await state.update_data(description=value)
+    await state.set_state(AdminForm.partner_hours)
+    await message.answer("📍 <b>Новый партнёр · 6/8</b>\n\nУкажи часы работы, например: <code>Ежедневно 12:00–00:00</code>", reply_markup=partner_cancel_keyboard())
+
+
+@router.message(AdminForm.partner_hours)
+async def partner_hours(message: Message, state: FSMContext):
+    value = (message.text or "").strip()
+    if not value or len(value) > 120:
+        await message.answer("Укажи часы работы длиной до 120 символов.")
+        return
+    await state.update_data(hours=value)
+    await state.set_state(AdminForm.partner_priority)
+    await message.answer("📍 <b>Новый партнёр · 7/8</b>\n\nВведи приоритет от -1000 до 1000. Чем больше число, тем выше рекомендация. Обычно достаточно <code>100</code>.", reply_markup=partner_cancel_keyboard())
+
+
+@router.message(AdminForm.partner_priority)
+async def partner_priority(message: Message, state: FSMContext):
+    try:
+        value = int((message.text or "").strip())
+        if not -1000 <= value <= 1000:
+            raise ValueError
+    except ValueError:
+        await message.answer("Введи целое число от -1000 до 1000.")
+        return
+    await state.update_data(priority=value)
+    await state.set_state(AdminForm.partner_logo)
+    await message.answer(
+        "📍 <b>Новый партнёр · 8/8</b>\n\nОтправь логотип как фотографию. Telegram может сжать его; для карточки этого достаточно.",
+        reply_markup=keyboard([[('Пропустить логотип', 'partner:logo:skip')], [('Отмена', 'partner:cancel')]]),
+    )
+
+
+async def show_partner_preview(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    text = (
+        "📍 <b>Проверь партнёра</b>\n\n"
+        f"<b>{html.escape(data['name'])}</b> · {html.escape(data['city'])}\n"
+        f"{html.escape(data['address'])}\n"
+        f"{html.escape(data['description'])}\n"
+        f"Часы: {html.escape(data['hours'])}\n"
+        f"Приоритет: {data['priority']}\n"
+        f"Логотип: {'✓' if data.get('logo_data_url') else 'нет'}"
+    )
+    await state.set_state(AdminForm.partner_confirm)
+    await message.answer(text, reply_markup=keyboard([[('✅ Добавить', 'partner:confirm')], [('Отмена', 'partner:cancel')]]))
+
+
+@router.message(AdminForm.partner_logo, F.photo)
+async def partner_logo(message: Message, state: FSMContext):
+    photo = message.photo[-1]
+    if photo.file_size and photo.file_size > 2_000_000:
+        await message.answer("Логотип больше 2 МБ. Пришли изображение поменьше.")
+        return
+    stream = BytesIO()
+    await message.bot.download(photo, destination=stream)
+    raw = stream.getvalue()
+    if len(raw) > 2_000_000:
+        await message.answer("Логотип больше 2 МБ. Пришли изображение поменьше.")
+        return
+    await state.update_data(logo_data_url="data:image/jpeg;base64," + base64.b64encode(raw).decode("ascii"))
+    await show_partner_preview(message, state)
+
+
+@router.callback_query(AdminForm.partner_logo, F.data == "partner:logo:skip")
+async def partner_logo_skip(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(logo_data_url="")
+    await show_partner_preview(callback.message, state)
+    await callback.answer()
+
+
+@router.callback_query(AdminForm.partner_confirm, F.data == "partner:confirm")
+async def partner_confirm(callback: CallbackQuery, state: FSMContext):
+    payload = await state.get_data()
+    payload["is_active"] = True
+    result = await api.post("/api/admin/partner-places", callback.from_user.id, payload)
+    place = result.get("place", {})
+    await state.clear()
+    await callback.message.edit_text(
+        f"✅ Партнёр <b>{html.escape(place.get('name') or payload['name'])}</b> добавлен и уже показывается пользователям.",
+        reply_markup=keyboard([[('📍 К партнёрам', 'menu:partners')], [('← Главное меню', 'menu:home')]]),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("partner:toggle:"))
+async def partner_toggle(callback: CallbackQuery):
+    place_id = int(callback.data.rsplit(":", 1)[-1])
+    data = await api.get("/api/admin/partner-places", callback.from_user.id)
+    place = next((item for item in data.get("places", []) if int(item["id"]) == place_id), None)
+    if not place:
+        await callback.answer("Партнёр не найден", show_alert=True)
+        return
+    payload = {key: place.get(key) for key in (
+        "city", "name", "description", "address", "latitude", "longitude", "map_url",
+        "logo_data_url", "hours", "priority",
+    )}
+    payload["is_active"] = not bool(place.get("is_active"))
+    await api.put(f"/api/admin/partner-places/{place_id}", callback.from_user.id, payload)
+    callback.data = "menu:partners"
+    await partner_places(callback)
+
+
+@router.callback_query(F.data == "partner:cancel")
+async def partner_cancel(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    callback.data = "menu:partners"
+    await partner_places(callback)
 
 
 @router.callback_query(F.data == "menu:map_reports")
